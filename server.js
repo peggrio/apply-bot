@@ -45,19 +45,23 @@ const promptsJsonPath = path.join(__dirname, 'data', 'prompts.json')
 const jobFiltersJsonPath = path.join(__dirname, 'data', 'job-filters.json')
 const logsJsonPath = path.join(__dirname, 'data', 'logs.json')
 const monitoredCompaniesJsonPath = path.join(__dirname, 'data', 'monitored-companies.json')
-const resumeTxtPath = path.join(__dirname, 'data', 'resume.txt')
-const resumeMetaPath = path.join(__dirname, 'data', 'resume-meta.json')
 const dataDir = path.join(__dirname, 'data')
+const resumesDir = path.join(dataDir, 'resumes')
+const parsedResumesDir = path.join(dataDir, 'parsed-resumes')
+const resumeTxtPath = path.join(parsedResumesDir, 'resume.txt')
+const resumeMetaPath = path.join(parsedResumesDir, 'resume-meta.json')
 
-// Ensure data directory exists
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
+// Ensure runtime data directories exist
+for (const directory of [dataDir, resumesDir, parsedResumesDir]) {
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true })
+  }
 }
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, dataDir)
+    cb(null, resumesDir)
   },
   filename: (req, file, cb) => {
     // Keep original filename, but ensure it's a PDF
@@ -173,11 +177,11 @@ app.post('/api/applied', (req, res) => {
 // Get list of resume files
 app.get('/api/resumes', (req, res) => {
   try {
-    const files = fs.readdirSync(dataDir)
+    const files = fs.readdirSync(resumesDir)
     const resumeFiles = files
       .filter(file => file.toLowerCase().endsWith('.pdf'))
       .map(file => {
-        const filePath = path.join(dataDir, file)
+        const filePath = path.join(resumesDir, file)
         const stats = fs.statSync(filePath)
         return {
           name: file,
@@ -192,6 +196,26 @@ app.get('/api/resumes', (req, res) => {
   } catch (error) {
     console.error('Error reading resume files:', error)
     res.status(500).json({ error: 'Failed to read resume files' })
+  }
+})
+
+// Preview a resume PDF from the data directory
+app.get('/api/resumes/:filename', (req, res) => {
+  try {
+    const filename = decodeURIComponent(req.params.filename)
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\') || !filename.toLowerCase().endsWith('.pdf')) {
+      return res.status(400).json({ error: 'Invalid resume filename' })
+    }
+
+    const filePath = path.join(resumesDir, filename)
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Resume not found' })
+    }
+
+    res.sendFile(filePath)
+  } catch (error) {
+    console.error('Error serving resume:', error)
+    res.status(500).json({ error: 'Failed to serve resume' })
   }
 })
 
@@ -241,7 +265,7 @@ app.delete('/api/resumes/:filename', (req, res) => {
       return res.status(400).json({ error: 'Invalid filename' })
     }
 
-    const filePath = path.join(dataDir, filename)
+    const filePath = path.join(resumesDir, filename)
 
     // Only allow deleting PDF files
     if (!filename.toLowerCase().endsWith('.pdf')) {
@@ -269,7 +293,7 @@ app.post('/api/resumes/parse/:filename', async (req, res) => {
       return res.status(400).json({ error: 'Invalid filename' })
     }
 
-    const filePath = path.join(dataDir, filename)
+    const filePath = path.join(resumesDir, filename)
 
     // Only allow parsing PDF files
     if (!filename.toLowerCase().endsWith('.pdf')) {
@@ -712,4 +736,3 @@ app.post('/api/monitored-companies', (req, res) => {
     process.exit(1)
   }
 })()
-

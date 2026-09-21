@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Settings, Calendar, Monitor, Sun, Moon, FileText, BookOpen, Settings2, FileCode, ScrollText, Eye } from 'lucide-react'
+import { LayoutDashboard, Monitor, Sun, Moon, FileText, BookOpen, Settings2, FileCode, ScrollText, Eye } from 'lucide-react'
 import { useThemeStore } from '@/store/themeStore'
 import { useSidebarStore } from '@/store/sidebarStore'
 
@@ -10,6 +10,7 @@ export default function Sidebar() {
 
   const links = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/resume', icon: FileText, label: 'Resume' },
     { to: '/applications', icon: FileText, label: 'Applications' },
     { to: '/monitor', icon: Eye, label: 'Monitor', badge: 'BETA' },
     { to: '/config', icon: Settings2, label: 'Config' },

@@ -9,6 +9,7 @@ import KnowledgeBase from './pages/KnowledgeBase'
 import Prompts from './pages/Prompts'
 import Logs from './pages/Logs'
 import Monitor from './pages/Monitor'
+import Resume from './pages/Resume'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/config" element={<Config />} />
+        <Route path="/resume" element={<Resume />} />
         <Route path="/scheduler" element={<Scheduler />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/applications" element={<Applications />} />
