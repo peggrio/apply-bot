@@ -67,6 +67,17 @@
           "type": "success"
         }
       ]
+    },
+    {
+      "id": "session-1780014117",
+      "name": "LinkedIn Job Review - 2026-09-22",
+      "createdAt": "2026-09-22T00:21:57Z",
+      "entries": [
+        {"timestamp":"2026-09-22T00:21:57Z","action":"Session started","reason":"Reviewed prompts.json and followed the job-review prompt; application submission is prohibited.","type":"info"},
+        {"timestamp":"2026-09-22T00:21:57Z","action":"Collected job information","reason":"Read current LinkedIn job pages and used job-filters.json for relevance.","result":"MintMCP and Chalk matched location, recency, and required technology criteria.","type":"info"},
+        {"timestamp":"2026-09-22T00:21:57Z","action":"Created needs-review records","reason":"Recorded two jobs for human review without opening or submitting any application form.","result":"2 needs-review records created.","type":"success"}
+      ],
+      "summary": {"totalApplications":2,"successful":0,"needsReview":2,"skipped":0}
     }
   ]
 }

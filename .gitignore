@@ -14,7 +14,13 @@ dist-ssr
 
 # Local resume data
 data/resumes/
-data/parsed-resumes/
+data/parsed_resumes/
+
+# Local application history
+data/applications/
+
+# Local API credentials
+credentials/
 
 # Editor directories and files
 .vscode/*

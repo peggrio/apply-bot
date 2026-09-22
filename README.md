@@ -66,7 +66,9 @@ See the full [Setup Guide](https://docs.apply-bot.com) for detailed instructions
 apply-bot/
 ├── src/           # React frontend
 ├── data/          # Local data storage
-│   ├── applied.json      # Application records
+│   ├── applications/     # Application records grouped by UTC date (local only)
+│   ├── resumes/          # Uploaded PDF resumes (local only)
+│   ├── parsed_resumes/   # One parsed text file per resume (local only)
 │   ├── knowledge.json    # AI memory
 │   ├── prompts.json      # Prompt templates
 │   ├── job-filters.json  # Filter settings

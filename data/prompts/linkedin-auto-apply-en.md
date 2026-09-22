@@ -1,16 +1,22 @@
-# LinkedIn Auto Apply Task
+# LinkedIn Job Review Task
 
 ## Task Description
 
-Open LinkedIn, search for software engineer positions posted within the last 24 hours, and help me apply to the latest 20 job postings.
+Open LinkedIn, search for software engineer positions in the San Francisco Bay Area posted within the last 24 hours, and collect the latest 2 job postings for my review.
+
+## Critical Safety Rule: Never Submit Applications
+
+- Fully stop automated job submission. Do not click Apply, Easy Apply, Submit, Send, or any equivalent button.
+- Do not fill or advance through application forms.
+- The agent may only inspect job listings, collect job information, and create review records.
+- Every record must use exactly `"status": "needs-review"`. No other status is allowed.
 
 ## Personal Information Sources
 
 My personal information is stored in the `data/` folder:
-- **`resume.txt`** - Complete resume text (personal info, work experience, education, skills)
+- **`parsed_resumes/*.txt`** - Parsed text for each uploaded resume
 - **`knowledge.json`** - Pre-answered application questions (work authorization, demographics, availability)
 - **`job-filters.json`** - Job filtering preferences (blacklist/whitelist, salary, work type, tech stack)
-- **`resume-meta.json`** - Resume metadata (source file, parse date)
 
 ## Operation Requirements
 
@@ -18,72 +24,46 @@ My personal information is stored in the `data/` folder:
    - What you are about to do
    - Why you are doing it (the reasoning/basis)
    - What information or rule you are following
-   - Example: "Filling 'Yes' for work authorization field because knowledge.json shows no sponsorship required"
    - Example: "Skipping this job because company 'XYZ' is in the job-filters.json blacklist"
-   - Example: "Selecting 'Male' for gender because knowledge.json has this answer recorded"
-   - Example: "Filling email as 'john@example.com' from resume.txt"
+   - Example: "Recording this job for review because it matches the configured location and technology filters"
 
-2. **Minimize Operations**: Minimize the number of snapshot calls. When you see all input fields, fill them all out at once based on my information to reduce the total number of operations.
+2. **Minimize Operations**: Minimize snapshot calls. Collect all visible job details from each listing in as few read-only operations as possible.
 
 2. **Information Processing**:
-   - Prioritize reading information from `data/resume.txt` for personal/resume information
-   - Use `data/knowledge.json` for pre-answered questions and form field mappings
-   - If you encounter uncertain or missing information, make reasonable assumptions based on context first
-   - **CRITICAL: Every time you fill in an assumed answer, you MUST immediately record it to `data/knowledge.json`**
-   - Record format:
-     ```json
-     {
-       "question": "Original question text",
-       "assumedAnswer": "The assumed answer",
-       "reasoning": "Why you made this assumption (optional)",
-       "timestamp": "timestamp"
-     }
-     ```
-   - **Examples of when to record**:
-     - "How many years of Selenium experience?" → Record if not in resume.txt or knowledge.json
-     - "Years of JSON experience?" → Record if not in resume.txt or knowledge.json
-     - Any technology-specific years of experience questions
-     - Any question where you estimate or infer the answer
+   - Use `data/job-filters.json` only to evaluate job relevance.
+   - Do not use personal information to answer questions or populate forms.
+   - Do not infer application-form answers or create new answers in `data/knowledge.json`.
 
-3. **Application Records**:
-   - After completing each application, **immediately** record the job posting information to `data/applied.json`
+3. **Job Review Records**:
+   - After identifying each relevant job, **immediately** record the job posting information in `data/applications/YYYY-MM-DD/applications.json`, where `YYYY-MM-DD` is derived from `applicationTime` in UTC (GMT+0).
+   - Create the UTC date directory and initialize `applications.json` as `[]` when they do not exist. Append the new record to the existing array; do not overwrite other records from the same day.
    - Record format:
      ```json
      {
        "company": "Company name",
        "jobTitle": "Job title",
+       "jobDescription": "Complete About the job / job description text",
        "postedTime": "Job posting time (ISO 8601 timestamp, calculated from relative time)",
-       "applicationTime": "Application time (ISO 8601 format, precise to hour, minute, second, e.g., 2025-11-17T00:16:12Z)",
-       "status": "applied" or "needs-human-review",
-       "link": "Job posting link (try to preserve, even for Easy Apply)"
+       "applicationTime": "Time the job was recorded for review (ISO 8601 UTC timestamp, e.g., 2025-11-17T00:16:12Z)",
+       "status": "needs-review",
+       "job_link": "Full job portal URL; if unavailable, the full LinkedIn job URL",
+       "resume": null
      }
      ```
-   - **Important**: `applicationTime` must use the **actual timestamp** when the application is completed. Use `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the current UTC time. Do not use fixed timestamps or placeholders.
+   - **Important**: `applicationTime` must use the **actual timestamp** when the job is recorded. Use `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the current UTC time. Do not use fixed timestamps or placeholders.
+   - **Required webpage sources**: `company`, `jobTitle`, and `postedTime` must all be read directly from the current job webpage. Do not infer them from the URL, cached search results, prior listings, or surrounding context.
+   - **Exact text requirement**: Record `company` and `jobTitle` exactly as displayed on the job webpage, without guessing, rewriting, normalizing, or expanding abbreviations.
    - **Important**: `postedTime` must be calculated from the relative time displayed on LinkedIn (e.g., "7 hours ago", "2 days ago"). Calculate the actual timestamp by subtracting the duration from the current time. Use ISO 8601 format (e.g., 2025-11-17T00:16:12Z). This ensures the time is accurate and can be properly sorted.
-   - **Important**: Try to preserve the `link` field, even for Easy Apply, record the job posting link for future reference and tracking.
-   - **Status Description**:
-     - `status: "applied"` - Successfully completed application (default status, if not specified, default to this status)
-     - `status: "needs-human-review"` - Requires human intervention (e.g., form too complex, requires additional information, captcha, cannot be completed automatically, etc.), **must provide the `link` field** for manual follow-up processing
+   - If any of `company`, `jobTitle`, or the webpage's posted-time value cannot be read, do not create a record for that job.
+   - **Important**: `jobDescription` is required. Capture the complete visible "About the job" content.
+   - **Important**: `job_link` is required and must be a full URL. Prefer the external job portal URL; if it cannot be found, use the full LinkedIn job URL.
+   - **Important**: `status` must always be exactly `"needs-review"`.
+   - **Important**: Leave `resume` as `null`. The user selects a dedicated parsed resume for each job from the Applications dashboard.
 
-4. **Form Filling**:
-   - Check `data/knowledge.json` for previously answered questions and field mappings
-   - Extract information from `data/resume.txt` for personal details, work experience, skills, etc.
-   - Use `data/job-filters.json` for job preferences and filtering criteria
-   - For questions that cannot be determined, make reasonable assumptions and record to `data/knowledge.json`
-   
-   **Important - LinkedIn Form Element Special Handling**:
-   - LinkedIn's radio/checkbox buttons' `value` attributes are usually UUIDs, not visible text (like "Yes"/"No")
-   - If you cannot select radio/checkbox through `browser_click` or CSS selectors, use the following method:
-     1. Use `browser_evaluate` to check the actual DOM structure and find the element's real ID
-     2. Get the element directly through `getElementById`
-     3. Execute: `element.click()` → `element.checked = true` → Manually trigger events:
-        ```javascript
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new Event('click', { bubbles: true }));
-        ```
-   - For text input fields, prioritize using the `browser_type` tool
-   - For dropdowns, use the `browser_select_option` tool
-   - If form validation fails, check if all required fields are correctly filled, especially whether radio/checkbox are actually selected
+4. **Review Preparation Only**:
+   - Use `data/job-filters.json` to decide whether a listing is relevant.
+   - Reading the job page and its description is allowed.
+   - Opening, filling, or submitting an application form is prohibited.
 
 5. **Modal Close Optimization**:
    - **Problem**: When using `browser_click` to click close buttons (like "Done", "Dismiss"), although the modal is closed, the tool may still be waiting for the page to fully load or async operations to complete, causing slow response
@@ -102,17 +82,16 @@ My personal information is stored in the `data/` folder:
    - **Note**: If you just need to close the modal and continue to the next operation, you don't need to wait for `browser_click` to complete. You can directly use `browser_evaluate` or `browser_press_key` to close quickly
 
 6. **Other Tips**:
-   - It's recommended to disable the Simplify extension first (if enabled)
-   - Prioritize applying to positions with the "Easy Apply" label
-   - If the form is too complex or cannot be completed, skip and record the reason
+   - Do not start either Easy Apply or an external portal application.
+   - If job details cannot be collected, skip the listing and record the reason.
 
 7. **Session Logging**:
-   - At the START of each application session, create a log file at `data/logs.json`
+   - At the START of each job-review session, create a log file at `data/logs.json`
    - Create a new session with format:
      ```json
      {
        "id": "session-{timestamp}",
-       "name": "LinkedIn Auto Apply - {date}",
+       "name": "LinkedIn Job Review - {date}",
        "createdAt": "ISO timestamp",
        "entries": []
      }
@@ -128,10 +107,10 @@ My personal information is stored in the `data/` folder:
      }
      ```
    - **Log these events**:
-     - Starting application for a job (type: info)
-     - Filling each form field with reasoning (type: info)
+     - Starting review of a job (type: info)
+     - Collecting job details (type: info)
      - Skipping a job and why (type: warning)
-     - Successfully submitting application (type: success)
+     - Successfully creating a needs-review record (type: success)
      - Errors or issues encountered (type: error)
      - Using assumed answers (type: warning)
    - At the END of the session, update the session with a summary:
@@ -151,9 +130,10 @@ My personal information is stored in the `data/` folder:
 ```
 apply-bot/
 ├── data/
-│   ├── resume.txt (parsed resume text)
-│   ├── resume-meta.json (resume metadata)
-│   ├── applied.json (application records)
+│   ├── resumes/ (uploaded PDF resumes)
+│   ├── parsed_resumes/ (one parsed .txt per PDF resume)
+│   ├── applications/
+│   │   └── YYYY-MM-DD/applications.json (application records grouped by UTC date)
 │   ├── knowledge.json (pre-answered questions)
 │   ├── job-filters.json (job filtering preferences)
 │   └── logs.json (session logs)

@@ -10,9 +10,11 @@ import { useNavigate } from 'react-router-dom'
 interface Application {
   company: string
   jobTitle: string
+  jobDescription: string
   postedTime: string
   applicationTime: string
-  link?: string
+  status: 'needs-review'
+  job_link: string
 }
 
 // Helper function to generate daily application data from applications
@@ -44,7 +46,7 @@ const generateDailyData = (applications: Application[]) => {
 
 const chartConfig = {
   applied: {
-    label: 'Applied',
+    label: 'Recorded',
     color: 'hsl(25, 20%, 45%)', // stone-600 color
   },
 }
@@ -212,15 +214,15 @@ export default function Dashboard() {
 
       {/* Chart and Stats Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        {/* Daily Applications Chart - 3/4 width */}
+        {/* Daily Review Queue Chart - 3/4 width */}
         <div className="lg:col-span-3">
           <Card className="border-gray-200 dark:border-stone-700 shadow-sm hover:shadow-md transition-shadow duration-200 h-full overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-gray-50/50 to-white dark:from-stone-900/50 dark:to-stone-800/50 border-b border-gray-200 dark:border-stone-700">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold">Daily Applications</CardTitle>
+              <CardTitle className="text-xl font-semibold">Daily Jobs Recorded</CardTitle>
               <CardDescription className="mt-1">
-                Showing total applications for the last 30 days
+                Jobs added to the review queue over the last 30 days
               </CardDescription>
             </div>
             {monthGrowth && (
@@ -291,11 +293,11 @@ export default function Dashboard() {
 
         {/* Right Side Stats - 1/4 width */}
         <div className="lg:col-span-1 flex flex-col gap-6">
-          {/* Total Applications */}
+          {/* Total Jobs for Review */}
           <Card className="border-gray-200 dark:border-stone-700 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-gray-50/50 dark:from-stone-800 dark:to-stone-900/50 flex-1 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                Total Applications
+                Jobs for Review
               </CardTitle>
               <div className="h-10 w-10 text-stone-600 dark:text-stone-400 bg-stone-100 dark:bg-stone-700/50 rounded-lg p-2 flex items-center justify-center">
                 <FileText className="h-5 w-5" />
@@ -307,7 +309,7 @@ export default function Dashboard() {
                   {isLoading ? '...' : applications.length.toLocaleString()}
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1">
-                  {applications.length > 0 ? 'Active applications' : 'No applications yet'}
+                  {applications.length > 0 ? 'Jobs awaiting review' : 'No jobs awaiting review'}
                 </p>
               </div>
               {appStats && applications.length > 0 && (
@@ -411,9 +413,9 @@ export default function Dashboard() {
         <CardHeader className="bg-gradient-to-r from-gray-50/50 to-white dark:from-stone-900/50 dark:to-stone-800/50 border-b border-gray-200 dark:border-stone-700">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold">Recent Applications</CardTitle>
+              <CardTitle className="text-xl font-semibold">Recent Jobs for Review</CardTitle>
               <CardDescription className="mt-1">
-                A list of your recent job applications and their status.
+                Jobs collected by the agent for your manual review.
               </CardDescription>
             </div>
             <button
@@ -443,7 +445,7 @@ export default function Dashboard() {
                     <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300">Company</TableHead>
                     <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300">Position</TableHead>
                     <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
-                    <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300">Applied</TableHead>
+                    <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recorded</TableHead>
                     <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">Link</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -457,17 +459,17 @@ export default function Dashboard() {
                         {app.jobTitle}
                       </TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 font-medium px-2.5 py-1 text-xs">
-                          Applied
+                        <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 font-medium px-2.5 py-1 text-xs">
+                          Needs Review
                         </span>
                       </TableCell>
                       <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(app.applicationTime)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {app.link ? (
+                        {app.job_link ? (
                           <a
-                            href={app.link}
+                            href={app.job_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors text-sm font-medium"
