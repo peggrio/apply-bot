@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Monitor, Sun, Moon, FileText, BookOpen, Settings2, FileCode, ScrollText } from 'lucide-react'
+import { LayoutDashboard, Monitor, Sun, Moon, FileText, BookOpen, Settings2, FileCode } from 'lucide-react'
 import { useThemeStore } from '@/store/themeStore'
 import { useSidebarStore } from '@/store/sidebarStore'
 
@@ -15,7 +15,6 @@ export default function Sidebar() {
     { to: '/config', icon: Settings2, label: 'Config' },
     { to: '/prompts', icon: FileCode, label: 'Prompts' },
     { to: '/unknown-questions', icon: BookOpen, label: 'Memory' },
-    { to: '/logs', icon: ScrollText, label: 'Logs', badge: 'BETA' },
     // { to: '/scheduler', icon: Calendar, label: 'Scheduler' },
     // { to: '/settings', icon: Settings, label: 'Settings' },
   ]
@@ -109,11 +108,6 @@ export default function Sidebar() {
                 }`}>
                   {link.label}
                 </span>
-                {link.badge && !collapsed && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded bg-orange-400 dark:bg-orange-500 text-white">
-                    {link.badge}
-                  </span>
-                )}
               </Link>
             )
           })}

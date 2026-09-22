@@ -21,7 +21,7 @@
 - **Privacy-First** - All data stored locally
 - **Smart Filtering** - Whitelist/blacklist companies, skip certain jobs
 - **Application Tracking** - Track all submissions in one place
-- **Session Logging** - Detailed logs of AI actions and reasoning
+- **Application Logging** - Detailed action and reasoning logs stored with each application
 
 ## Quick Example
 
@@ -73,8 +73,7 @@ apply-bot/
 │   ├── knowledge_example.json # Shareable memory template
 │   ├── prompts.json      # Prompt templates
 │   ├── job-filters.json  # Local filter preferences (gitignored)
-│   ├── job-filters_example.json # Shareable filter template
-│   └── logs.json         # Session logs
+│   └── job-filters_example.json # Shareable filter template
 └── server.js      # Express backend
 ```
 
