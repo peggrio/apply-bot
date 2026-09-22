@@ -7,7 +7,6 @@ import Settings from './pages/Settings'
 import Applications from './pages/Applications'
 import KnowledgeBase from './pages/KnowledgeBase'
 import Prompts from './pages/Prompts'
-import Logs from './pages/Logs'
 import Resume from './pages/Resume'
 
 function App() {
@@ -22,7 +21,6 @@ function App() {
         <Route path="/applications" element={<Applications />} />
         <Route path="/unknown-questions" element={<KnowledgeBase />} />
         <Route path="/prompts" element={<Prompts />} />
-        <Route path="/logs" element={<Logs />} />
       </Routes>
     </Layout>
   )

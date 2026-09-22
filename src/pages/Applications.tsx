@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useState, useEffect, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Filter, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Filter, ExternalLink } from 'lucide-react'
 
 interface Application {
   company: string
@@ -13,6 +13,7 @@ interface Application {
   status: 'needs-review'
   job_link: string
   resume?: string | null
+  logs: ApplicationLog[]
   jevClassification?: {
     choice: string
     confidence: number | null
@@ -24,11 +25,19 @@ interface Application {
   }
 }
 
+interface ApplicationLog {
+  timestamp: string
+  action: string
+  reason: string
+  result?: string
+  type: 'info' | 'success' | 'warning' | 'error'
+}
+
 type LinkFilter = 'all' | 'with-link' | 'no-link'
 type StatusFilter = 'all' | 'needs-review'
-type SortOrder = 'newest-first' | 'oldest-first'
-
 const ITEMS_PER_PAGE = 20
+
+const applicationDateKey = (applicationTime: string) => new Date(applicationTime).toISOString().slice(0, 10)
 
 export default function Applications() {
   const [applications, setApplications] = useState<Application[]>([])
@@ -38,9 +47,7 @@ export default function Applications() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [companyFilter, setCompanyFilter] = useState<string>('')
   const [positionFilter, setPositionFilter] = useState<string>('')
-  const sortOrder: SortOrder = 'newest-first'
-  const [postedSort, setPostedSort] = useState<'asc' | 'desc' | null>(null) // null = not active, asc = oldest first, desc = newest first
-  const [appliedSort, setAppliedSort] = useState<'asc' | 'desc' | null>(null) // null = not active, asc = oldest first, desc = newest first
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedFilter, setExpandedFilter] = useState<string | null>(null)
   const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set())
@@ -79,7 +86,7 @@ export default function Applications() {
       if (!response.ok) throw new Error(result.error || 'JEV classification failed')
       setApplications(current => current.map(item => (
         item.applicationTime === application.applicationTime && item.job_link === application.job_link
-          ? { ...item, resume: result.choice, jevClassification: result.classification }
+          ? result.application || { ...item, resume: result.choice, jevClassification: result.classification }
           : item
       )))
     } catch (error) {
@@ -101,6 +108,20 @@ export default function Applications() {
   }
 
   const formatPayload = (payload: unknown) => JSON.stringify(payload ?? {}, null, 2)
+
+  const availableDates = useMemo(() => (
+    [...new Set(applications.map(application => applicationDateKey(application.applicationTime)))]
+      .sort((a, b) => b.localeCompare(a))
+  ), [applications])
+
+  const toggleDate = (date: string) => {
+    setSelectedDates(current => {
+      const next = new Set(current)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
+  }
 
   // Filter and sort applications
   const filteredAndSortedApplications = useMemo(() => {
@@ -136,65 +157,32 @@ export default function Applications() {
       )
     }
 
-    // Apply sort - priority: Applied > Posted > Sort Order
-    filtered.sort((a, b) => {
-      // First sort by Applied time if sort is set
-      if (appliedSort !== null) {
-        const timeA = new Date(a.applicationTime).getTime()
-        const timeB = new Date(b.applicationTime).getTime()
-        const result = appliedSort === 'desc' ? timeB - timeA : timeA - timeB
-        if (result !== 0) return result
-      }
-      
-      // Then sort by Posted time if sort is set
-      if (postedSort !== null) {
-        // Parse postedTime to get timestamp
-        const parsePostedTime = (postedTime: string): number => {
-          // Try to parse as ISO timestamp first
-          const timestamp = Date.parse(postedTime)
-          if (!isNaN(timestamp)) {
-            return timestamp
-          }
+    if (selectedDates.size > 0) {
+      filtered = filtered.filter(app => selectedDates.has(applicationDateKey(app.applicationTime)))
+    }
 
-          // Fallback: parse old format "X hours ago" or "X days ago"
-          const hoursMatch = postedTime.match(/(\d+)\s*hours?\s*ago/i)
-          const daysMatch = postedTime.match(/(\d+)\s*days?\s*ago/i)
-
-          if (hoursMatch) {
-            const hours = parseInt(hoursMatch[1])
-            return Date.now() - hours * 60 * 60 * 1000
-          } else if (daysMatch) {
-            const days = parseInt(daysMatch[1])
-            return Date.now() - days * 24 * 60 * 60 * 1000
-          }
-          return 0
-        }
-
-        const timeA = parsePostedTime(a.postedTime)
-        const timeB = parsePostedTime(b.postedTime)
-        const result = postedSort === 'desc' ? timeB - timeA : timeA - timeB
-        if (result !== 0) return result
-      }
-      
-      // Finally, use the default sort order
-      const timeA = new Date(a.applicationTime).getTime()
-      const timeB = new Date(b.applicationTime).getTime()
-      return sortOrder === 'newest-first' ? timeB - timeA : timeA - timeB
-    })
+    filtered.sort((a, b) => new Date(b.applicationTime).getTime() - new Date(a.applicationTime).getTime())
 
     return filtered
-  }, [applications, linkFilter, statusFilter, companyFilter, positionFilter, sortOrder, postedSort, appliedSort])
+  }, [applications, linkFilter, statusFilter, companyFilter, positionFilter, selectedDates])
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedApplications.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedApplications = filteredAndSortedApplications.slice(startIndex, endIndex)
+  const applicationCountsByDate = useMemo(() => (
+    filteredAndSortedApplications.reduce<Record<string, number>>((counts, application) => {
+      const date = applicationDateKey(application.applicationTime)
+      counts[date] = (counts[date] || 0) + 1
+      return counts
+    }, {})
+  ), [filteredAndSortedApplications])
 
   // Reset to page 1 when filter or sort changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [linkFilter, statusFilter, companyFilter, positionFilter, sortOrder, postedSort, appliedSort])
+  }, [linkFilter, statusFilter, companyFilter, positionFilter, selectedDates])
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -269,33 +257,45 @@ export default function Applications() {
   }
 
 
-  const togglePostedSort = () => {
-    setPostedSort(prev => {
-      if (prev === null) return 'asc'
-      if (prev === 'asc') return 'desc'
-      return null
-    })
-    // Clear applied sort when toggling posted sort
-    setAppliedSort(null)
-  }
-
-  const toggleAppliedSort = () => {
-    setAppliedSort(prev => {
-      if (prev === null) return 'asc'
-      if (prev === 'asc') return 'desc'
-      return null
-    })
-    // Clear posted sort when toggling applied sort
-    setPostedSort(null)
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Applications
           </h2>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+          <div className="relative">
+            <button
+              data-filter-button
+              onClick={() => setExpandedFilter(expandedFilter === 'date' ? null : 'date')}
+              className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                selectedDates.size > 0
+                  ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-stone-600 dark:bg-stone-800 dark:text-gray-300 dark:hover:bg-stone-700'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {selectedDates.size > 0 ? `${selectedDates.size} day${selectedDates.size === 1 ? '' : 's'}` : 'All dates'}
+            </button>
+            {expandedFilter === 'date' && (
+              <div ref={filterPopupRef} className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-stone-700 dark:bg-stone-800">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">Filter by UTC date</span>
+                  {selectedDates.size > 0 && (
+                    <button onClick={() => setSelectedDates(new Set())} className="text-xs text-blue-600 hover:underline dark:text-blue-400">Clear</button>
+                  )}
+                </div>
+                <div className="max-h-64 space-y-1 overflow-y-auto">
+                  {availableDates.map(date => (
+                    <label key={date} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-stone-700">
+                      <input type="checkbox" checked={selectedDates.has(date)} onChange={() => toggleDate(date)} />
+                      <span>{date}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           {isLoading ? (
             'Loading...'
           ) : (
@@ -396,34 +396,8 @@ export default function Applications() {
                       <TableHead className="hidden">
                         Job Description
                       </TableHead>
-                      <TableHead className="hidden">
-                        <button
-                          onClick={togglePostedSort}
-                          className="flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                          title={postedSort === 'asc' ? 'Oldest first (click to reverse)' : postedSort === 'desc' ? 'Newest first (click to clear)' : 'Click to sort'}
-                        >
-                          <span>Posted</span>
-                          {postedSort === 'asc' ? (
-                            <ArrowUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          ) : postedSort === 'desc' ? (
-                            <ArrowDown className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          ) : null}
-                        </button>
-                      </TableHead>
-                      <TableHead className="hidden">
-                        <button
-                          onClick={toggleAppliedSort}
-                          className="flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                          title={appliedSort === 'asc' ? 'Oldest first (click to reverse)' : appliedSort === 'desc' ? 'Newest first (click to clear)' : 'Click to sort'}
-                        >
-                          <span>Recorded</span>
-                          {appliedSort === 'asc' ? (
-                            <ArrowUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          ) : appliedSort === 'desc' ? (
-                            <ArrowDown className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          ) : null}
-                        </button>
-                      </TableHead>
+                      <TableHead className="hidden">Posted</TableHead>
+                      <TableHead className="hidden">Recorded</TableHead>
                       <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[220px]">
                         Resume Used
                       </TableHead>
@@ -509,8 +483,18 @@ export default function Applications() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedApplications.map((app, index) => (
-                    <>
+                  paginatedApplications.map((app, index) => {
+                    const date = applicationDateKey(app.applicationTime)
+                    const previousDate = index > 0 ? applicationDateKey(paginatedApplications[index - 1].applicationTime) : null
+                    return (
+                    <Fragment key={applicationKey(app)}>
+                      {date !== previousDate && (
+                        <TableRow className="bg-gray-100 dark:bg-stone-800">
+                          <TableCell colSpan={5} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            {date} · {applicationCountsByDate[date]} application{applicationCountsByDate[date] === 1 ? '' : 's'}
+                          </TableCell>
+                        </TableRow>
+                      )}
                       <TableRow key={startIndex + index} className="border-gray-100 dark:border-stone-800 hover:bg-gray-50 dark:hover:bg-stone-800/50 transition-colors">
                         <TableCell className="font-medium capitalize text-sm w-[150px]">
                           <div className="truncate" title={app.company}>
@@ -625,13 +609,31 @@ export default function Applications() {
                                     </details>
                                   </div>
                                 )}
+                                <div className="mt-4">
+                                  <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Application log</h3>
+                                  <div className="max-h-80 space-y-2 overflow-y-auto">
+                                    {(app.logs || []).length === 0 ? (
+                                      <p className="text-sm text-gray-500 dark:text-gray-400">No log entries.</p>
+                                    ) : [...app.logs].reverse().map((log, index) => (
+                                      <div key={`${log.timestamp}-${index}`} className="rounded-md border border-gray-200 bg-white p-3 text-sm dark:border-stone-700 dark:bg-stone-800">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <span className="font-medium text-gray-900 dark:text-gray-100">{log.action}</span>
+                                          <span className="shrink-0 text-xs uppercase text-gray-500 dark:text-gray-400">{log.type}</span>
+                                        </div>
+                                        <p className="mt-1 text-gray-600 dark:text-gray-300">{log.reason}</p>
+                                        {log.result && <p className="mt-1 text-gray-500 dark:text-gray-400">Result: {log.result}</p>}
+                                        <p className="mt-1 text-xs text-gray-400">{formatDate(log.timestamp)}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </section>
                             </div>
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
-                  ))
+                    </Fragment>
+                  )})
                 )}
                   </TableBody>
                 </Table>

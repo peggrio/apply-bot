@@ -48,7 +48,16 @@
        "applicationTime": "记录该职位以供审核的时间（ISO 8601 UTC 格式，如：2025-11-17T00:16:12Z）",
        "status": "needs-review",
        "job_link": "完整的职位门户 URL；找不到时至少记录完整的 LinkedIn 职位 URL",
-       "resume": null
+       "resume": null,
+       "logs": [
+         {
+           "timestamp": "ISO 时间戳",
+           "action": "简短操作描述",
+           "reason": "为什么执行此操作（详细解释）",
+           "result": "操作结果（可选）",
+           "type": "info|success|warning|error"
+         }
+       ]
      }
      ```
    - **重要**：`applicationTime` 必须使用记录职位时的**实际时间戳**，使用 `date -u +"%Y-%m-%dT%H:%M:%SZ"` 获取当前 UTC 时间，不要使用固定时间戳或占位符。
@@ -86,18 +95,9 @@
    - 不得启动 Easy Apply 或外部职位门户的申请流程。
    - 如果无法收集完整职位信息，跳过并记录原因。
 
-7. **会话日志记录**：
-   - 在每次申请会话开始时，在 `data/logs.json` 创建日志
-   - 创建新会话，格式：
-     ```json
-     {
-       "id": "session-{timestamp}",
-       "name": "LinkedIn 自动申请 - {日期}",
-       "createdAt": "ISO 时间戳",
-       "entries": []
-     }
-     ```
-   - 对于每个重要操作，追加日志条目：
+7. **Application 日志记录**：
+   - 将日志直接保存到对应 application 的 `logs` 数组中，不再创建或更新 `data/logs.json`。
+   - 对于与该 application 相关的每个重要操作，追加：
      ```json
      {
        "timestamp": "ISO 时间戳",
@@ -114,17 +114,7 @@
      - 成功创建 needs-review 记录 (type: success)
      - 遇到错误或问题 (type: error)
      - 使用假设的答案 (type: warning)
-   - 在会话结束时，更新会话摘要：
-     ```json
-     {
-       "summary": {
-         "totalApplications": 数量,
-         "successful": 数量,
-         "needsReview": 数量,
-         "skipped": 数量
-       }
-     }
-     ```
+   - 每条新 application 至少包含一条日志，解释为什么记录该职位。
 
 ## 文件结构
 
@@ -138,7 +128,6 @@ apply-bot/
 │   ├── knowledge.json (本地预先回答的问题；已被 gitignore)
 │   ├── knowledge_example.json (可共享的空白模板)
 │   ├── job-filters.json (本地职位过滤偏好；已被 gitignore)
-│   ├── job-filters_example.json (可共享的空白筛选模板)
-│   └── logs.json (会话日志)
+│   └── job-filters_example.json (可共享的空白筛选模板)
 └── readme.md (本文件)
 ```

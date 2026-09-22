@@ -44,7 +44,6 @@ const knowledgeExamplePath = path.join(__dirname, 'data', 'knowledge_example.jso
 const promptsJsonPath = path.join(__dirname, 'data', 'prompts.json')
 const jobFiltersJsonPath = path.join(__dirname, 'data', 'job-filters.json')
 const jobFiltersExamplePath = path.join(__dirname, 'data', 'job-filters_example.json')
-const logsJsonPath = path.join(__dirname, 'data', 'logs.json')
 const jevCredentialsPath = path.join(__dirname, 'credentials', 'jev.json')
 const dataDir = path.join(__dirname, 'data')
 const applicationsDir = path.join(dataDir, 'applications')
@@ -177,6 +176,19 @@ const requiredApplicationFields = [
   'job_link'
 ]
 
+const validLogTypes = new Set(['info', 'success', 'warning', 'error'])
+
+const validateApplicationLog = (log) => {
+  if (!log || typeof log !== 'object' || Array.isArray(log)) return 'Each log must be an object'
+  for (const field of ['timestamp', 'action', 'reason', 'type']) {
+    if (typeof log[field] !== 'string' || !log[field].trim()) return `log.${field} is required`
+  }
+  if (Number.isNaN(new Date(log.timestamp).getTime())) return 'log.timestamp must be a valid ISO timestamp'
+  if (!validLogTypes.has(log.type)) return 'log.type must be info, success, warning, or error'
+  if (log.result !== undefined && typeof log.result !== 'string') return 'log.result must be a string when provided'
+  return null
+}
+
 const validateApplication = (application) => {
   if (!application || typeof application !== 'object' || Array.isArray(application)) {
     return 'Each application must be an object'
@@ -188,6 +200,13 @@ const validateApplication = (application) => {
   }
   if (application.status !== 'needs-review') {
     return 'status must be exactly "needs-review"'
+  }
+  if (!Array.isArray(application.logs) || application.logs.length === 0) {
+    return 'logs must be a non-empty array'
+  }
+  for (const log of application.logs) {
+    const logError = validateApplicationLog(log)
+    if (logError) return logError
   }
   try {
     const jobUrl = new URL(application.job_link)
@@ -370,7 +389,23 @@ app.patch('/api/applied/resume', (req, res) => {
     if (index === -1) {
       return res.status(404).json({ error: 'Application record not found' })
     }
-    applications[index] = { ...applications[index], resume }
+    const assignedAt = new Date().toISOString()
+    applications[index] = {
+      ...applications[index],
+      resume,
+      logs: [
+        ...(applications[index].logs || []),
+        {
+          timestamp: assignedAt,
+          action: resume ? 'Assigned resume' : 'Cleared resume assignment',
+          reason: resume
+            ? 'The user selected a dedicated parsed resume for this application.'
+            : 'The user removed the dedicated resume assignment from this application.',
+          result: resume || 'No resume assigned',
+          type: 'success'
+        }
+      ]
+    }
     fs.writeFileSync(applicationsPath, JSON.stringify(applications, null, 2), 'utf-8')
     res.json({ success: true, application: applications[index] })
   } catch (error) {
@@ -454,13 +489,24 @@ app.post('/api/applied/classify', async (req, res) => {
     applications[index] = {
       ...application,
       resume: choice,
-      jevClassification: classification
+      jevClassification: classification,
+      logs: [
+        ...(application.logs || []),
+        {
+          timestamp: classification.classifiedAt,
+          action: 'Ran JEV resume classifier',
+          reason: 'Compared the job title and description against every parsed resume to select the best fit.',
+          result: `Selected ${choice}`,
+          type: 'success'
+        }
+      ]
     }
     fs.writeFileSync(applicationsPath, JSON.stringify(applications, null, 2), 'utf-8')
     res.json({
       success: true,
       choice,
       classification,
+      application: applications[index],
       response: jevResponse
     })
   } catch (error) {
@@ -877,115 +923,6 @@ app.post('/api/job-filters', (req, res) => {
   } catch (error) {
     console.error('Error writing job-filters.json:', error)
     res.status(500).json({ error: 'Failed to write job-filters.json' })
-  }
-})
-
-// Logs API
-// Get all logs
-app.get('/api/logs', (req, res) => {
-  try {
-    if (!fs.existsSync(logsJsonPath)) {
-      return res.json({ sessions: [] })
-    }
-    const data = fs.readFileSync(logsJsonPath, 'utf-8')
-    const json = data.trim() ? JSON.parse(data) : { sessions: [] }
-    res.json(json)
-  } catch (error) {
-    console.error('Error reading logs.json:', error)
-    res.status(500).json({ error: 'Failed to read logs.json' })
-  }
-})
-
-// Create new log session
-app.post('/api/logs', (req, res) => {
-  try {
-    const { session } = req.body
-
-    if (!session || !session.id) {
-      return res.status(400).json({ error: 'Invalid session data' })
-    }
-
-    let logsData = { sessions: [] }
-    if (fs.existsSync(logsJsonPath)) {
-      const data = fs.readFileSync(logsJsonPath, 'utf-8')
-      logsData = data.trim() ? JSON.parse(data) : { sessions: [] }
-    }
-
-    // Add new session at the beginning
-    logsData.sessions.unshift(session)
-
-    // Keep only last 50 sessions
-    if (logsData.sessions.length > 50) {
-      logsData.sessions = logsData.sessions.slice(0, 50)
-    }
-
-    fs.writeFileSync(logsJsonPath, JSON.stringify(logsData, null, 2), 'utf-8')
-    res.json({ success: true, session })
-  } catch (error) {
-    console.error('Error creating log session:', error)
-    res.status(500).json({ error: 'Failed to create log session' })
-  }
-})
-
-// Append log entry to existing session
-app.post('/api/logs/:sessionId/entries', (req, res) => {
-  try {
-    const { sessionId } = req.params
-    const { entry } = req.body
-
-    if (!entry) {
-      return res.status(400).json({ error: 'Invalid entry data' })
-    }
-
-    if (!fs.existsSync(logsJsonPath)) {
-      return res.status(404).json({ error: 'No logs found' })
-    }
-
-    const data = fs.readFileSync(logsJsonPath, 'utf-8')
-    const logsData = data.trim() ? JSON.parse(data) : { sessions: [] }
-
-    const session = logsData.sessions.find(s => s.id === sessionId)
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' })
-    }
-
-    if (!session.entries) {
-      session.entries = []
-    }
-    session.entries.push(entry)
-    session.updatedAt = new Date().toISOString()
-
-    fs.writeFileSync(logsJsonPath, JSON.stringify(logsData, null, 2), 'utf-8')
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Error appending log entry:', error)
-    res.status(500).json({ error: 'Failed to append log entry' })
-  }
-})
-
-// Delete log session
-app.delete('/api/logs/:sessionId', (req, res) => {
-  try {
-    const { sessionId } = req.params
-
-    if (!fs.existsSync(logsJsonPath)) {
-      return res.status(404).json({ error: 'No logs found' })
-    }
-
-    const data = fs.readFileSync(logsJsonPath, 'utf-8')
-    const logsData = data.trim() ? JSON.parse(data) : { sessions: [] }
-
-    const index = logsData.sessions.findIndex(s => s.id === sessionId)
-    if (index === -1) {
-      return res.status(404).json({ error: 'Session not found' })
-    }
-
-    logsData.sessions.splice(index, 1)
-    fs.writeFileSync(logsJsonPath, JSON.stringify(logsData, null, 2), 'utf-8')
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting log session:', error)
-    res.status(500).json({ error: 'Failed to delete log session' })
   }
 })
 

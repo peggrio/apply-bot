@@ -48,7 +48,16 @@ My personal information is stored in the `data/` folder:
        "applicationTime": "Time the job was recorded for review (ISO 8601 UTC timestamp, e.g., 2025-11-17T00:16:12Z)",
        "status": "needs-review",
        "job_link": "Full job portal URL; if unavailable, the full LinkedIn job URL",
-       "resume": null
+       "resume": null,
+       "logs": [
+         {
+           "timestamp": "ISO timestamp",
+           "action": "Brief action description",
+           "reason": "Why this action was taken (detailed explanation)",
+           "result": "Outcome of the action (optional)",
+           "type": "info|success|warning|error"
+         }
+       ]
      }
      ```
    - **Important**: `applicationTime` must use the **actual timestamp** when the job is recorded. Use `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the current UTC time. Do not use fixed timestamps or placeholders.
@@ -86,18 +95,9 @@ My personal information is stored in the `data/` folder:
    - Do not start either Easy Apply or an external portal application.
    - If job details cannot be collected, skip the listing and record the reason.
 
-7. **Session Logging**:
-   - At the START of each job-review session, create a log file at `data/logs.json`
-   - Create a new session with format:
-     ```json
-     {
-       "id": "session-{timestamp}",
-       "name": "LinkedIn Job Review - {date}",
-       "createdAt": "ISO timestamp",
-       "entries": []
-     }
-     ```
-   - For each significant action, append a log entry:
+7. **Application Logging**:
+   - Store logs directly in the relevant application's `logs` array. Do not create or update `data/logs.json`.
+   - For each significant action related to that application, append:
      ```json
      {
        "timestamp": "ISO timestamp",
@@ -114,17 +114,7 @@ My personal information is stored in the `data/` folder:
      - Successfully creating a needs-review record (type: success)
      - Errors or issues encountered (type: error)
      - Using assumed answers (type: warning)
-   - At the END of the session, update the session with a summary:
-     ```json
-     {
-       "summary": {
-         "totalApplications": number,
-         "successful": number,
-         "needsReview": number,
-         "skipped": number
-       }
-     }
-     ```
+   - Every new application must include at least one log entry explaining why the job was recorded.
 
 ## File Structure
 
@@ -138,7 +128,6 @@ apply-bot/
 │   ├── knowledge.json (local pre-answered questions; gitignored)
 │   ├── knowledge_example.json (shareable empty template)
 │   ├── job-filters.json (local job filtering preferences; gitignored)
-│   ├── job-filters_example.json (shareable empty filter template)
-│   └── logs.json (session logs)
+│   └── job-filters_example.json (shareable empty filter template)
 └── readme.md (this file)
 ```
