@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, RefreshCw, Upload, Trash2, Play } from 'lucide-react'
+import { FileText, RefreshCw, Upload, Trash2, Play, Pencil } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -7,6 +7,9 @@ interface ResumeFile {
   name: string
   size: number
   uploadedAt: string
+  parsed: boolean
+  parsedFile: string | null
+  parsedAt: string | null
 }
 
 const formatFileSize = (bytes: number) => {
@@ -21,8 +24,8 @@ export default function Resume() {
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentResume, setCurrentResume] = useState<{ sourceFile: string | null; parsedAt: string | null; textLength: number } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [updating, setUpdating] = useState<string | null>(null)
   const [parsing, setParsing] = useState<string | null>(null)
 
   const loadResumes = async () => {
@@ -43,28 +46,47 @@ export default function Resume() {
 
   useEffect(() => { loadResumes() }, [])
 
-  const loadCurrentResume = async () => {
-    const response = await fetch('/api/resume')
-    const data = await response.json()
-    setCurrentResume(data.exists ? data : null)
-  }
-
-  useEffect(() => { loadCurrentResume().catch(() => setCurrentResume(null)) }, [])
-
   const uploadResume = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    if (resumes.some(resume => resume.name.toLowerCase() === file.name.toLowerCase())) {
+      alert(`A resume named "${file.name}" already exists. Please rename it or use Update.`)
+      event.target.value = ''
+      return
+    }
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append('resume', file)
       const response = await fetch('/api/resumes/upload', { method: 'POST', body: formData })
-      if (!response.ok) throw new Error((await response.json()).error || 'Upload failed')
+      if (!response.ok) {
+        const message = (await response.json()).error || 'Upload failed'
+        if (response.status === 409) alert(message)
+        throw new Error(message)
+      }
       await loadResumes()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  const updateResume = async (name: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setUpdating(name)
+    try {
+      const formData = new FormData()
+      formData.append('resume', file)
+      const response = await fetch(`/api/resumes/${encodeURIComponent(name)}`, { method: 'PUT', body: formData })
+      if (!response.ok) throw new Error((await response.json()).error || 'Update failed')
+      await loadResumes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setUpdating(null)
       event.target.value = ''
     }
   }
@@ -81,7 +103,7 @@ export default function Resume() {
     try {
       const response = await fetch(`/api/resumes/parse/${encodeURIComponent(name)}`, { method: 'POST' })
       if (!response.ok) throw new Error((await response.json()).error || 'Failed to parse resume')
-      await loadCurrentResume()
+      await loadResumes()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse resume')
     } finally {
@@ -107,16 +129,27 @@ export default function Resume() {
           <CardDescription>Upload, parse, delete, and preview PDF resumes.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {currentResume && <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">Active resume: <strong>{currentResume.sourceFile}</strong>{currentResume.parsedAt ? ` · Parsed ${new Date(currentResume.parsedAt).toLocaleString()}` : ''}</div>}
           <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed p-5 text-sm hover:border-primary-400 ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
             <Upload size={20} /> {uploading ? 'Uploading...' : 'Upload PDF resume'}
             <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={uploadResume} disabled={uploading} />
           </label>
           <div className="space-y-2">
             {resumes.map(file => <div key={file.name} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-stone-700">
-              <span className="flex min-w-0 items-center gap-2"><FileText size={18} /><span className="truncate text-sm">{file.name}</span></span>
+              <span className="flex min-w-0 items-center gap-2">
+                <FileText size={18} />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm">{file.name}</span>
+                  <span className={`text-xs ${file.parsed ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {file.parsed ? `Parsed as ${file.parsedFile}` : 'Not parsed'}
+                  </span>
+                </span>
+              </span>
               <span className="flex items-center gap-1">
                 <Button size="sm" variant="outline" onClick={() => parseResume(file.name)} disabled={parsing === file.name}><Play size={14} className="mr-1" />{parsing === file.name ? 'Parsing...' : 'Parse'}</Button>
+                <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium hover:bg-gray-50 dark:border-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700">
+                  <Pencil size={14} className="mr-1" />{updating === file.name ? 'Updating...' : 'Update'}
+                  <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={(event) => updateResume(file.name, event)} disabled={updating === file.name} />
+                </label>
                 <Button size="sm" variant="ghost" onClick={() => deleteResume(file.name)} className="text-red-600"><Trash2 size={16} /></Button>
               </span>
             </div>)}

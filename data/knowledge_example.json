@@ -1,0 +1,56 @@
+{
+  "Do you require sponsorship for employment visa status?": {
+    "answer": ""
+  },
+  "What is your availability to start?": {
+    "answer": ""
+  },
+  "Are you willing to relocate?": {
+    "answer": ""
+  },
+  "What is your expected salary range?": {
+    "answer": ""
+  },
+  "Are you a veteran or active military?": {
+    "answer": ""
+  },
+  "Do you have a disability?": {
+    "answer": ""
+  },
+  "Are you authorized to work in the United States?": {
+    "answer": ""
+  },
+  "What is your gender?": {
+    "answer": ""
+  },
+  "What is your race or ethnicity?": {
+    "answer": ""
+  },
+  "Are you Hispanic or Latino?": {
+    "answer": ""
+  },
+  "How many years of experience do you have with React?": {
+    "answer": ""
+  },
+  "Do you have experience with TypeScript?": {
+    "answer": ""
+  },
+  "Do you have experience with cloud platforms (AWS, Azure, GCP)?": {
+    "answer": ""
+  },
+  "What is your proficiency level with Docker and containerization?": {
+    "answer": ""
+  },
+  "Do you have experience with microservices architecture?": {
+    "answer": ""
+  },
+  "How many years of experience do you have with Selenium?": {
+    "answer": ""
+  },
+  "How many years of experience do you have with JSON?": {
+    "answer": ""
+  },
+  "Anything of extraordinary ability you have done you want us to know about?": {
+    "answer": ""
+  }
+}

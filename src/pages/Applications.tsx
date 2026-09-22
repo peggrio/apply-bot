@@ -1,35 +1,49 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ChevronLeft, ChevronRight, X, Filter, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Filter, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react'
 
 interface Application {
   company: string
   jobTitle: string
+  jobDescription: string
   postedTime: string
   applicationTime: string
-  status?: 'applied' | 'needs-human-review'
-  link?: string
+  status: 'needs-review'
+  job_link: string
+  resume?: string | null
+  jevClassification?: {
+    choice: string
+    confidence: number | null
+    probabilities: Record<string, number>
+    model: string
+    classifiedAt: string
+    requestPayload?: unknown
+    responsePayload?: unknown
+  }
 }
 
 type LinkFilter = 'all' | 'with-link' | 'no-link'
-type StatusFilter = 'all' | 'applied' | 'needs-human-review'
+type StatusFilter = 'all' | 'needs-review'
 type SortOrder = 'newest-first' | 'oldest-first'
 
 const ITEMS_PER_PAGE = 20
 
 export default function Applications() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [classifying, setClassifying] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [linkFilter, setLinkFilter] = useState<LinkFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [companyFilter, setCompanyFilter] = useState<string>('')
   const [positionFilter, setPositionFilter] = useState<string>('')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('newest-first')
+  const sortOrder: SortOrder = 'newest-first'
   const [postedSort, setPostedSort] = useState<'asc' | 'desc' | null>(null) // null = not active, asc = oldest first, desc = newest first
   const [appliedSort, setAppliedSort] = useState<'asc' | 'desc' | null>(null) // null = not active, asc = oldest first, desc = newest first
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedFilter, setExpandedFilter] = useState<string | null>(null)
+  const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set())
   const filterPopupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,22 +63,60 @@ export default function Applications() {
     fetchApplications()
   }, [])
 
+  const runJevClassifier = async (application: Application) => {
+    const key = `${application.applicationTime}:${application.job_link}`
+    setClassifying(key)
+    try {
+      const response = await fetch('/api/applied/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationTime: application.applicationTime,
+          job_link: application.job_link,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'JEV classification failed')
+      setApplications(current => current.map(item => (
+        item.applicationTime === application.applicationTime && item.job_link === application.job_link
+          ? { ...item, resume: result.choice, jevClassification: result.classification }
+          : item
+      )))
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'JEV classification failed')
+    } finally {
+      setClassifying(null)
+    }
+  }
+
+  const applicationKey = (application: Application) => `${application.applicationTime}:${application.job_link}`
+  const toggleApplication = (application: Application) => {
+    const key = applicationKey(application)
+    setExpandedApplications(current => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const formatPayload = (payload: unknown) => JSON.stringify(payload ?? {}, null, 2)
+
   // Filter and sort applications
   const filteredAndSortedApplications = useMemo(() => {
     let filtered = [...applications]
 
     // Apply link filter
     if (linkFilter === 'with-link') {
-      filtered = filtered.filter(app => app.link && app.link.trim() !== '')
+      filtered = filtered.filter(app => app.job_link && app.job_link.trim() !== '')
     } else if (linkFilter === 'no-link') {
-      filtered = filtered.filter(app => !app.link || app.link.trim() === '')
+      filtered = filtered.filter(app => !app.job_link || app.job_link.trim() === '')
     }
 
     // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(app => {
-        const appStatus = app.status || 'applied' // Default to 'applied' if status is undefined
-        return appStatus === statusFilter
+        return app.status === statusFilter
       })
     }
 
@@ -341,7 +393,10 @@ export default function Applications() {
                           </div>
                         )}
                       </TableHead>
-                      <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[120px]">
+                      <TableHead className="hidden">
+                        Job Description
+                      </TableHead>
+                      <TableHead className="hidden">
                         <button
                           onClick={togglePostedSort}
                           className="flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
@@ -355,19 +410,25 @@ export default function Applications() {
                           ) : null}
                         </button>
                       </TableHead>
-                      <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[150px]">
+                      <TableHead className="hidden">
                         <button
                           onClick={toggleAppliedSort}
                           className="flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                           title={appliedSort === 'asc' ? 'Oldest first (click to reverse)' : appliedSort === 'desc' ? 'Newest first (click to clear)' : 'Click to sort'}
                         >
-                          <span>Applied</span>
+                          <span>Recorded</span>
                           {appliedSort === 'asc' ? (
                             <ArrowUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                           ) : appliedSort === 'desc' ? (
                             <ArrowDown className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                           ) : null}
                         </button>
+                      </TableHead>
+                      <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[220px]">
+                        Resume Used
+                      </TableHead>
+                      <TableHead className="hidden">
+                        JEV Classifier
                       </TableHead>
                       <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 relative w-[120px]">
                         <div className="flex items-center gap-2">
@@ -395,8 +456,7 @@ export default function Applications() {
                               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-stone-600 rounded bg-white dark:bg-stone-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                             >
                               <option value="all">All Status</option>
-                              <option value="applied">Applied</option>
-                              <option value="needs-human-review">Needs Review</option>
+                              <option value="needs-review">Needs Review</option>
                             </select>
                           </div>
                         )}
@@ -438,18 +498,19 @@ export default function Applications() {
                   <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
                       Loading applications...
                     </TableCell>
                   </TableRow>
                 ) : filteredAndSortedApplications.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No applications found
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedApplications.map((app, index) => (
+                    <>
                       <TableRow key={startIndex + index} className="border-gray-100 dark:border-stone-800 hover:bg-gray-50 dark:hover:bg-stone-800/50 transition-colors">
                         <TableCell className="font-medium capitalize text-sm w-[150px]">
                           <div className="truncate" title={app.company}>
@@ -457,47 +518,119 @@ export default function Applications() {
                           </div>
                         </TableCell>
                         <TableCell className="text-sm w-[200px]">
-                          <div className="truncate" title={app.jobTitle}>
-                          {app.jobTitle}
+                          <div className="truncate" title={app.jobTitle}>{app.jobTitle}</div>
+                        </TableCell>
+                        <TableCell className="hidden">
+                          <div className="line-clamp-2" title={app.jobDescription}>
+                            {app.jobDescription}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400 w-[120px]">
+                        <TableCell className="hidden">
                           <div className="truncate" title={formatPostedTime(app.postedTime)}>
                           {formatPostedTime(app.postedTime)}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400 w-[150px]">
+                        <TableCell className="hidden">
                           <div className="truncate" title={formatDate(app.applicationTime)}>
                           {formatDate(app.applicationTime)}
                           </div>
                         </TableCell>
-                        <TableCell className="w-[120px]">
-                          {app.status === 'needs-human-review' ? (
-                            <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 font-medium px-2.5 py-1 text-xs">
-                              Needs Review
-                            </span>
-                          ) : (
-                          <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 font-medium px-2.5 py-1 text-xs">
-                            Applied
-                          </span>
-                          )}
+                        <TableCell className="w-[220px] text-sm text-gray-700 dark:text-gray-300">
+                          <div className="truncate" title={app.jevClassification?.choice || app.resume || 'Not selected'}>
+                            {app.jevClassification?.choice || app.resume || '—'}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-center w-[80px]">
-                          {app.link ? (
-                            <a
-                              href={app.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                              title={app.link}
+                        <TableCell className="hidden">
+                          <div className="space-y-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => runJevClassifier(app)}
+                              disabled={classifying === `${app.applicationTime}:${app.job_link}`}
                             >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          ) : (
-                            <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
-                          )}
+                              {classifying === `${app.applicationTime}:${app.job_link}` ? 'Classifying...' : 'Run JEV'}
+                            </Button>
+                            {app.jevClassification && (
+                              <p className="truncate text-xs text-gray-600 dark:text-gray-400" title={app.jevClassification.choice}>
+                                Choice: {app.jevClassification.choice}
+                                {typeof app.jevClassification.confidence === 'number' ? ` (${Math.round(app.jevClassification.confidence * 100)}%)` : ''}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[120px]">
+                          <span className="inline-flex items-center rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 font-medium px-2.5 py-1 text-xs">
+                            Needs Review
+                          </span>
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          <div className="flex items-center justify-end gap-3">
+                            {app.job_link ? (
+                              <a
+                                href={app.job_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                title={app.job_link}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => toggleApplication(app)}
+                              className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-stone-700 dark:hover:text-gray-100"
+                              aria-label={`${expandedApplications.has(applicationKey(app)) ? 'Collapse' : 'Expand'} details for ${app.jobTitle}`}
+                            >
+                              {expandedApplications.has(applicationKey(app)) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
+                      {expandedApplications.has(applicationKey(app)) && (
+                        <TableRow className="bg-gray-50/80 dark:bg-stone-900/60">
+                          <TableCell colSpan={5} className="px-6 py-5">
+                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+                              <section>
+                                <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Job description</h3>
+                                <div className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-white p-4 text-sm leading-6 text-gray-700 dark:border-stone-700 dark:bg-stone-800 dark:text-gray-300">
+                                  {app.jobDescription || 'No job description available.'}
+                                </div>
+                                <div className="mt-3 grid gap-2 text-xs text-gray-500 dark:text-gray-400 sm:grid-cols-2">
+                                  <div>Posted: {formatDate(app.postedTime)}</div>
+                                  <div>Recorded: {formatDate(app.applicationTime)}</div>
+                                </div>
+                              </section>
+                              <section>
+                                <div className="mb-3 rounded-md border border-gray-200 bg-white p-3 dark:border-stone-700 dark:bg-stone-800">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Resume used</p>
+                                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    {app.jevClassification?.choice || app.resume || 'Run JEV to get a recommendation'}
+                                  </p>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => runJevClassifier(app)} disabled={classifying === applicationKey(app)}>
+                                  {classifying === applicationKey(app) ? 'Classifying...' : 'Run JEV'}
+                                </Button>
+                                {app.jevClassification && (
+                                  <div className="mt-3 space-y-3">
+                                    <details className="rounded-md border border-gray-200 dark:border-stone-700">
+                                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium">Request payload</summary>
+                                      <pre className="max-h-72 overflow-auto border-t border-gray-200 bg-gray-950 p-3 text-[11px] text-green-200 dark:border-stone-700">{formatPayload(app.jevClassification.requestPayload)}</pre>
+                                    </details>
+                                    <details className="rounded-md border border-gray-200 dark:border-stone-700">
+                                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium">Response payload</summary>
+                                      <pre className="max-h-72 overflow-auto border-t border-gray-200 bg-gray-950 p-3 text-[11px] text-green-200 dark:border-stone-700">{formatPayload(app.jevClassification.responsePayload)}</pre>
+                                    </details>
+                                  </div>
+                                )}
+                              </section>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   ))
                 )}
                   </TableBody>
@@ -534,4 +667,3 @@ export default function Applications() {
     </div>
   )
 }
-
