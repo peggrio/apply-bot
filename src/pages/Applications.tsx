@@ -24,11 +24,6 @@ interface Application {
   }
 }
 
-interface ResumeOption {
-  name: string
-  parsed: boolean
-}
-
 type LinkFilter = 'all' | 'with-link' | 'no-link'
 type StatusFilter = 'all' | 'needs-review'
 type SortOrder = 'newest-first' | 'oldest-first'
@@ -37,7 +32,6 @@ const ITEMS_PER_PAGE = 20
 
 export default function Applications() {
   const [applications, setApplications] = useState<Application[]>([])
-  const [resumes, setResumes] = useState<ResumeOption[]>([])
   const [classifying, setClassifying] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [linkFilter, setLinkFilter] = useState<LinkFilter>('all')
@@ -67,36 +61,7 @@ export default function Applications() {
     }
 
     fetchApplications()
-    fetch('/api/resumes')
-      .then(response => response.ok ? response.json() : Promise.reject(new Error('Failed to load resumes')))
-      .then((files: ResumeOption[]) => setResumes(files.filter(file => file.parsed)))
-      .catch(error => {
-        console.error('Failed to load resumes:', error)
-        setResumes([])
-      })
   }, [])
-
-  const assignResume = async (application: Application, resume: string | null) => {
-    try {
-      const response = await fetch('/api/applied/resume', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          applicationTime: application.applicationTime,
-          job_link: application.job_link,
-          resume,
-        }),
-      })
-      if (!response.ok) throw new Error((await response.json()).error || 'Failed to assign resume')
-      setApplications(current => current.map(item => (
-        item.applicationTime === application.applicationTime && item.job_link === application.job_link
-          ? { ...item, resume }
-          : item
-      )))
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to assign resume')
-    }
-  }
 
   const runJevClassifier = async (application: Application) => {
     const key = `${application.applicationTime}:${application.job_link}`
@@ -459,8 +424,8 @@ export default function Applications() {
                           ) : null}
                         </button>
                       </TableHead>
-                      <TableHead className="hidden">
-                        Resume
+                      <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[220px]">
+                        Resume Used
                       </TableHead>
                       <TableHead className="hidden">
                         JEV Classifier
@@ -533,13 +498,13 @@ export default function Applications() {
                   <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
                       Loading applications...
                     </TableCell>
                   </TableRow>
                 ) : filteredAndSortedApplications.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No applications found
                     </TableCell>
                   </TableRow>
@@ -570,16 +535,10 @@ export default function Applications() {
                           {formatDate(app.applicationTime)}
                           </div>
                         </TableCell>
-                        <TableCell className="hidden">
-                          <select
-                            value={app.resume || ''}
-                            onChange={(event) => assignResume(app, event.target.value || null)}
-                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 dark:border-stone-600 dark:bg-stone-800 dark:text-gray-100"
-                            aria-label={`Resume for ${app.jobTitle} at ${app.company}`}
-                          >
-                            <option value="">Select resume</option>
-                            {resumes.map(resume => <option key={resume.name} value={resume.name}>{resume.name}</option>)}
-                          </select>
+                        <TableCell className="w-[220px] text-sm text-gray-700 dark:text-gray-300">
+                          <div className="truncate" title={app.jevClassification?.choice || app.resume || 'Not selected'}>
+                            {app.jevClassification?.choice || app.resume || '—'}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden">
                           <div className="space-y-1.5">
@@ -632,7 +591,7 @@ export default function Applications() {
                       </TableRow>
                       {expandedApplications.has(applicationKey(app)) && (
                         <TableRow className="bg-gray-50/80 dark:bg-stone-900/60">
-                          <TableCell colSpan={4} className="px-6 py-5">
+                          <TableCell colSpan={5} className="px-6 py-5">
                             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
                               <section>
                                 <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Job description</h3>
@@ -646,7 +605,7 @@ export default function Applications() {
                               </section>
                               <section>
                                 <div className="mb-3 rounded-md border border-gray-200 bg-white p-3 dark:border-stone-700 dark:bg-stone-800">
-                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Recommended resume</p>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Resume used</p>
                                   <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                                     {app.jevClassification?.choice || app.resume || 'Run JEV to get a recommendation'}
                                   </p>
