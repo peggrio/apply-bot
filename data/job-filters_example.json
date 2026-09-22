@@ -6,11 +6,9 @@
       "type": "list",
       "description": "Companies to automatically skip",
       "aiExplanation": "When encountering job postings from these companies, automatically skip them without applying. This is a hard filter - never apply to these companies regardless of other criteria. Match company names case-insensitively.",
-      "value": [
-        "D3 Security"
-      ],
+      "value": [],
       "placeholder": "Enter company names, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "manual-apply-companies",
@@ -18,13 +16,9 @@
       "type": "list",
       "description": "Companies I want to apply to manually (skip AI auto-apply)",
       "aiExplanation": "Do NOT auto-apply to jobs from these companies. These are important companies where the user wants to apply manually to ensure accuracy. When encountering job postings from these companies, flag them for manual review and DO NOT submit any application automatically. Match company names case-insensitively and check for variations (e.g., 'Amazon' matches 'Amazon.com', 'AWS').",
-      "value": [
-        "Amazon",
-        "Google",
-        "Meta"
-      ],
+      "value": [],
       "placeholder": "Enter company names, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "blacklist-keywords",
@@ -32,14 +26,9 @@
       "type": "list",
       "description": "Keywords in job descriptions that should trigger auto-skip",
       "aiExplanation": "If a job posting contains any of these keywords in the title, description, or requirements, automatically skip it. Use case-insensitive matching. Check for partial matches (e.g., 'unpaid' matches 'unpaid internship').",
-      "value": [
-        "unpaid",
-        "internship",
-        "volunteer",
-        "commission only"
-      ],
+      "value": [],
       "placeholder": "Enter keywords, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "blacklist-job-titles",
@@ -49,7 +38,7 @@
       "aiExplanation": "Skip job postings with these exact or similar job titles. Use case-insensitive matching and check for variations (e.g., 'Software Engineer' matches 'Senior Software Engineer').",
       "value": [],
       "placeholder": "Enter job titles, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "whitelist-companies",
@@ -59,7 +48,7 @@
       "aiExplanation": "Prioritize job postings from these companies. If a job matches other criteria, these companies should be given higher priority. Still respect blacklist and other filters. Match company names case-insensitively.",
       "value": [],
       "placeholder": "Enter company names, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "whitelist-keywords",
@@ -67,13 +56,9 @@
       "type": "list",
       "description": "Keywords that make a job more attractive",
       "aiExplanation": "Prioritize job postings that contain these keywords. These keywords indicate desirable features (e.g., 'remote', 'flexible hours', 'startup'). Jobs with these keywords should be given higher priority.",
-      "value": [
-        "remote",
-        "flexible",
-        "startup"
-      ],
+      "value": [],
       "placeholder": "Enter keywords, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "min-salary",
@@ -81,11 +66,11 @@
       "type": "number",
       "description": "Minimum acceptable salary",
       "aiExplanation": "Skip job postings where the salary range is below this amount. If no salary is mentioned, you may still apply but note the missing salary information. Use the currency specified in the salary-currency filter. For salary ranges, check if the minimum of the range meets this requirement.",
-      "value": 74998,
+      "value": 0,
       "min": 0,
       "max": 1000000,
       "currency": "CAD",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "target-salary",
@@ -93,11 +78,11 @@
       "type": "number",
       "description": "Ideal salary target",
       "aiExplanation": "This is the ideal salary you're aiming for. Use this to prioritize jobs that offer salaries closer to this target. Jobs with salaries at or above this target should be given higher priority.",
-      "value": 120000,
+      "value": 0,
       "min": 0,
       "max": 1000000,
       "currency": "CAD",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "salary-currency",
@@ -105,7 +90,7 @@
       "type": "select",
       "description": "Currency for salary expectations",
       "aiExplanation": "Use this currency when evaluating salary requirements. Convert other currencies to this one if needed using current exchange rates, or note the currency mismatch if conversion is not possible.",
-      "value": "CAD",
+      "value": "",
       "options": [
         "CAD",
         "USD",
@@ -115,7 +100,7 @@
         "JPY",
         "CNY"
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "preferred-locations",
@@ -123,13 +108,9 @@
       "type": "list",
       "description": "Preferred job locations",
       "aiExplanation": "Prioritize jobs in these locations. Jobs in other locations may still be considered if they match other strong criteria, but these locations should be preferred. Match location names case-insensitively.",
-      "value": [
-        "Remote",
-        "Vancouver",
-        "Burnaby"
-      ],
+      "value": [],
       "placeholder": "Enter locations, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "must-have-tech",
@@ -137,13 +118,9 @@
       "type": "list",
       "description": "Technologies that must be present in the job",
       "aiExplanation": "Only apply to jobs that mention at least one of these technologies in the requirements or job description. This is a hard requirement - if none are mentioned, skip the job. Check for variations and related technologies (e.g., 'JS' matches 'JavaScript', 'React' matches 'React.js').",
-      "value": [
-        "TypeScript",
-        "java",
-        "python"
-      ],
+      "value": [],
       "placeholder": "Enter technologies, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "deal-breaker-tech",
@@ -153,7 +130,7 @@
       "aiExplanation": "Skip job postings that require or heavily emphasize these technologies. This is a hard filter - if a job requires expertise in these technologies, automatically skip it.",
       "value": [],
       "placeholder": "Enter technologies, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "min-experience-years",
@@ -164,7 +141,7 @@
       "value": 0,
       "min": 0,
       "max": 20,
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "max-experience-years",
@@ -172,10 +149,10 @@
       "type": "number",
       "description": "Maximum years of experience required (to avoid overqualified positions)",
       "aiExplanation": "Skip jobs that require significantly more experience than you have. If a job requires '10+ years' and you have 3 years, skip it as you're likely underqualified. This helps avoid applying to senior positions when you're mid-level.",
-      "value": 5,
+      "value": 0,
       "min": 0,
       "max": 20,
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "job-level-preference",
@@ -183,11 +160,7 @@
       "type": "multiselect",
       "description": "Preferred job levels",
       "aiExplanation": "Only apply to jobs at these levels. Match job titles and descriptions for level indicators like 'Junior', 'Mid-level', 'Senior', 'Lead', 'Principal', 'Staff', etc.",
-      "value": [
-        "mid-level",
-        "junior",
-        "intern"
-      ],
+      "value": [],
       "options": [
         "intern",
         "junior",
@@ -197,7 +170,7 @@
         "principal",
         "staff"
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "benefits-must-have",
@@ -207,7 +180,7 @@
       "aiExplanation": "Only apply to jobs that mention at least one of these benefits. If none are mentioned, you may still apply but note the missing information. Common benefits include 'health insurance', 'dental', '401k', 'stock options', 'unlimited PTO', etc.",
       "value": [],
       "placeholder": "Enter benefits, one per line",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "skip-no-salary",
@@ -216,7 +189,7 @@
       "description": "Skip job postings that don't mention salary",
       "aiExplanation": "If enabled, automatically skip jobs that don't provide salary information. If disabled, still apply but note the missing salary information for review. This helps avoid wasting time on jobs that may not meet salary expectations.",
       "value": false,
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "skip-contract-only",
@@ -225,7 +198,7 @@
       "description": "Skip contract or temporary positions",
       "aiExplanation": "If enabled, skip job postings that are explicitly contract, temporary, or freelance positions. Look for keywords like 'contract', 'temporary', 'freelance', 'consultant' in the job type or description.",
       "value": false,
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "nice-to-have-tech",
@@ -233,12 +206,7 @@
       "type": "list",
       "description": "Technologies that are preferred but not required",
       "aiExplanation": "Prioritize jobs that mention these technologies. These are bonus points - jobs with these technologies should be given higher priority, but jobs without them can still be considered.",
-      "value": [
-        "React",
-        "Node.js",
-        "Python",
-        ".NET"
-      ],
+      "value": [],
       "placeholder": "Enter technologies, one per line",
       "enabled": false
     },
@@ -248,11 +216,7 @@
       "type": "multiselect",
       "description": "Preferred company sizes",
       "aiExplanation": "Prioritize jobs from companies of these sizes. If a job doesn't specify company size, you may still apply. 'Startup' typically means <50 employees, 'Small' is 50-200, 'Medium' is 200-1000, 'Large' is 1000+.",
-      "value": [
-        "startup",
-        "small",
-        "medium"
-      ],
+      "value": [],
       "options": [
         "startup",
         "small",

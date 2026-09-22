@@ -19,6 +19,12 @@ data/parsed_resumes/
 # Local application history
 data/applications/
 
+# Local user memory answers
+data/knowledge.json
+
+# Local job-filter preferences
+data/job-filters.json
+
 # Local API credentials
 credentials/
 

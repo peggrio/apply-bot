@@ -69,9 +69,11 @@ apply-bot/
 │   ├── applications/     # Application records grouped by UTC date (local only)
 │   ├── resumes/          # Uploaded PDF resumes (local only)
 │   ├── parsed_resumes/   # One parsed text file per resume (local only)
-│   ├── knowledge.json    # AI memory
+│   ├── knowledge.json    # Local user answers (gitignored)
+│   ├── knowledge_example.json # Shareable memory template
 │   ├── prompts.json      # Prompt templates
-│   ├── job-filters.json  # Filter settings
+│   ├── job-filters.json  # Local filter preferences (gitignored)
+│   ├── job-filters_example.json # Shareable filter template
 │   └── logs.json         # Session logs
 └── server.js      # Express backend
 ```

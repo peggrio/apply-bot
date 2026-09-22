@@ -10,6 +10,7 @@
 - 不得填写或推进任何申请表单。
 - Agent 只能浏览职位、收集职位信息并创建待审核记录。
 - 每条记录的状态必须且只能是 `"status": "needs-review"`。
+- **特定公司动机/文化问题规则**：如果申请中出现类似 “Why are you interested in [Company]?”、“Why do you want to work here?”，或任何涉及特定公司使命、价值观、产品、文化契合度的问题，必须立即将该职位归类为 `needs-review`。不得自动撰写或推断答案，不得继续推进申请流程，也绝不能自动提交。即使未来恢复其他自动填表功能，这条规则也必须始终生效。
 
 ## 个人信息来源
 
@@ -134,8 +135,10 @@ apply-bot/
 │   ├── parsed_resumes/ (每份 PDF 各自对应一个解析后的 .txt)
 │   ├── applications/
 │   │   └── YYYY-MM-DD/applications.json (按 UTC 日期分组的申请记录)
-│   ├── knowledge.json (预先回答的问题)
-│   ├── job-filters.json (职位过滤偏好)
+│   ├── knowledge.json (本地预先回答的问题；已被 gitignore)
+│   ├── knowledge_example.json (可共享的空白模板)
+│   ├── job-filters.json (本地职位过滤偏好；已被 gitignore)
+│   ├── job-filters_example.json (可共享的空白筛选模板)
 │   └── logs.json (会话日志)
 └── readme.md (本文件)
 ```

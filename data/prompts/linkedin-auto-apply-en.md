@@ -10,6 +10,7 @@ Open LinkedIn, search for software engineer positions in the San Francisco Bay A
 - Do not fill or advance through application forms.
 - The agent may only inspect job listings, collect job information, and create review records.
 - Every record must use exactly `"status": "needs-review"`. No other status is allowed.
+- **Company-specific motivation/culture rule**: If an application asks questions such as "Why are you interested in [Company]?", "Why do you want to work here?", or anything about a specific company's mission, values, products, or culture fit, immediately classify the job as `needs-review`. Do not draft or infer an answer, do not continue the application flow, and never submit it automatically. This rule remains mandatory even if other automatic form-filling features are enabled in the future.
 
 ## Personal Information Sources
 
@@ -134,8 +135,10 @@ apply-bot/
 │   ├── parsed_resumes/ (one parsed .txt per PDF resume)
 │   ├── applications/
 │   │   └── YYYY-MM-DD/applications.json (application records grouped by UTC date)
-│   ├── knowledge.json (pre-answered questions)
-│   ├── job-filters.json (job filtering preferences)
+│   ├── knowledge.json (local pre-answered questions; gitignored)
+│   ├── knowledge_example.json (shareable empty template)
+│   ├── job-filters.json (local job filtering preferences; gitignored)
+│   ├── job-filters_example.json (shareable empty filter template)
 │   └── logs.json (session logs)
 └── readme.md (this file)
 ```

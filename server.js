@@ -40,10 +40,11 @@ async function findAvailablePort(startPort, maxAttempts = 10) {
 
 // Get paths to JSON files (in data directory)
 const knowledgeJsonPath = path.join(__dirname, 'data', 'knowledge.json')
+const knowledgeExamplePath = path.join(__dirname, 'data', 'knowledge_example.json')
 const promptsJsonPath = path.join(__dirname, 'data', 'prompts.json')
 const jobFiltersJsonPath = path.join(__dirname, 'data', 'job-filters.json')
+const jobFiltersExamplePath = path.join(__dirname, 'data', 'job-filters_example.json')
 const logsJsonPath = path.join(__dirname, 'data', 'logs.json')
-const monitoredCompaniesJsonPath = path.join(__dirname, 'data', 'monitored-companies.json')
 const jevCredentialsPath = path.join(__dirname, 'credentials', 'jev.json')
 const dataDir = path.join(__dirname, 'data')
 const applicationsDir = path.join(dataDir, 'applications')
@@ -88,15 +89,38 @@ const parsedResumePath = (filename) => path.join(
 app.use(cors())
 app.use(express.json())
 
+const readKnowledgeEntries = () => {
+  const sourcePath = fs.existsSync(knowledgeJsonPath) ? knowledgeJsonPath : knowledgeExamplePath
+  if (!fs.existsSync(sourcePath)) return []
+  const data = fs.readFileSync(sourcePath, 'utf-8')
+  const knowledge = data.trim() ? JSON.parse(data) : {}
+
+  // Backward compatibility for the previous array format.
+  if (Array.isArray(knowledge)) return knowledge
+  if (!knowledge || typeof knowledge !== 'object') return []
+
+  return Object.entries(knowledge).map(([question, value]) => {
+    if (typeof value === 'string') {
+      return { question, answer: value }
+    }
+    return { question, ...(value || {}) }
+  })
+}
+
+const writeKnowledgeEntries = (entries) => {
+  const knowledge = {}
+  for (const entry of entries) {
+    if (!entry || typeof entry.question !== 'string' || !entry.question.trim()) continue
+    const { question, ...answerData } = entry
+    knowledge[question.trim()] = answerData
+  }
+  fs.writeFileSync(knowledgeJsonPath, JSON.stringify(knowledge, null, 2), 'utf-8')
+}
+
 // Read knowledge.json
 app.get('/api/unknown', (req, res) => {
   try {
-    if (!fs.existsSync(knowledgeJsonPath)) {
-      return res.json([])
-    }
-    const data = fs.readFileSync(knowledgeJsonPath, 'utf-8')
-    const json = data.trim() ? JSON.parse(data) : []
-    res.json(Array.isArray(json) ? json : [])
+    res.json(readKnowledgeEntries())
   } catch (error) {
     console.error('Error reading knowledge.json:', error)
     res.status(500).json({ error: 'Failed to read knowledge.json' })
@@ -110,7 +134,7 @@ app.post('/api/unknown', (req, res) => {
     if (!Array.isArray(questions)) {
       return res.status(400).json({ error: 'Invalid data format' })
     }
-    fs.writeFileSync(knowledgeJsonPath, JSON.stringify(questions, null, 2), 'utf-8')
+    writeKnowledgeEntries(questions)
     res.json({ success: true })
   } catch (error) {
     console.error('Error writing knowledge.json:', error)
@@ -128,15 +152,14 @@ app.put('/api/unknown/:index', (req, res) => {
       return res.status(404).json({ error: 'knowledge.json not found' })
     }
     
-    const data = fs.readFileSync(knowledgeJsonPath, 'utf-8')
-    const questions = data.trim() ? JSON.parse(data) : []
+    const questions = readKnowledgeEntries()
     
     if (!Array.isArray(questions) || index < 0 || index >= questions.length) {
       return res.status(400).json({ error: 'Invalid index' })
     }
     
     questions[index] = updatedQuestion
-    fs.writeFileSync(knowledgeJsonPath, JSON.stringify(questions, null, 2), 'utf-8')
+    writeKnowledgeEntries(questions)
     res.json({ success: true, question: updatedQuestion })
   } catch (error) {
     console.error('Error updating question:', error)
@@ -827,10 +850,11 @@ app.delete('/api/prompts/:id', (req, res) => {
 // Get all job filters
 app.get('/api/job-filters', (req, res) => {
   try {
-    if (!fs.existsSync(jobFiltersJsonPath)) {
+    const sourcePath = fs.existsSync(jobFiltersJsonPath) ? jobFiltersJsonPath : jobFiltersExamplePath
+    if (!fs.existsSync(sourcePath)) {
       return res.json({ filters: [] })
     }
-    const data = fs.readFileSync(jobFiltersJsonPath, 'utf-8')
+    const data = fs.readFileSync(sourcePath, 'utf-8')
     const json = data.trim() ? JSON.parse(data) : { filters: [] }
     res.json(json)
   } catch (error) {
@@ -962,39 +986,6 @@ app.delete('/api/logs/:sessionId', (req, res) => {
   } catch (error) {
     console.error('Error deleting log session:', error)
     res.status(500).json({ error: 'Failed to delete log session' })
-  }
-})
-
-// Monitored Companies API
-// Get all monitored companies
-app.get('/api/monitored-companies', (req, res) => {
-  try {
-    if (!fs.existsSync(monitoredCompaniesJsonPath)) {
-      return res.json({ companies: [] })
-    }
-    const data = fs.readFileSync(monitoredCompaniesJsonPath, 'utf-8')
-    const json = data.trim() ? JSON.parse(data) : { companies: [] }
-    res.json(json)
-  } catch (error) {
-    console.error('Error reading monitored-companies.json:', error)
-    res.status(500).json({ error: 'Failed to read monitored-companies.json' })
-  }
-})
-
-// Update monitored companies
-app.post('/api/monitored-companies', (req, res) => {
-  try {
-    const { companies } = req.body
-
-    if (!Array.isArray(companies)) {
-      return res.status(400).json({ error: 'Invalid data format' })
-    }
-
-    fs.writeFileSync(monitoredCompaniesJsonPath, JSON.stringify({ companies }, null, 2), 'utf-8')
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Error writing monitored-companies.json:', error)
-    res.status(500).json({ error: 'Failed to write monitored-companies.json' })
   }
 })
 
