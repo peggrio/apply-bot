@@ -1,6 +1,5 @@
 import { Fragment, useState, useEffect, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Filter, ExternalLink } from 'lucide-react'
 
@@ -41,7 +40,6 @@ const applicationDateKey = (applicationTime: string) => new Date(applicationTime
 
 export default function Applications() {
   const [applications, setApplications] = useState<Application[]>([])
-  const [classifying, setClassifying] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [linkFilter, setLinkFilter] = useState<LinkFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -51,14 +49,18 @@ export default function Applications() {
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedFilter, setExpandedFilter] = useState<string | null>(null)
   const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set())
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
   const filterPopupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchApplications = async () => {
       try {
         const response = await fetch('/api/applied')
-        const data = await response.json()
+        const data: Application[] = await response.json()
         setApplications(data)
+        for (const application of data.filter(item => !item.jevClassification)) {
+          await classifyApplication(application)
+        }
       } catch (error) {
         console.error('Failed to load applications:', error)
         setApplications([])
@@ -70,9 +72,8 @@ export default function Applications() {
     fetchApplications()
   }, [])
 
-  const runJevClassifier = async (application: Application) => {
+  const classifyApplication = async (application: Application) => {
     const key = `${application.applicationTime}:${application.job_link}`
-    setClassifying(key)
     try {
       const response = await fetch('/api/applied/classify', {
         method: 'POST',
@@ -90,9 +91,7 @@ export default function Applications() {
           : item
       )))
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'JEV classification failed')
-    } finally {
-      setClassifying(null)
+      console.error(`Automatic JEV classification failed for ${key}:`, error)
     }
   }
 
@@ -107,7 +106,15 @@ export default function Applications() {
     })
   }
 
-  const formatPayload = (payload: unknown) => JSON.stringify(payload ?? {}, null, 2)
+  const toggleLog = (application: Application) => {
+    const key = applicationKey(application)
+    setExpandedLogs(current => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const availableDates = useMemo(() => (
     [...new Set(applications.map(application => applicationDateKey(application.applicationTime)))]
@@ -401,9 +408,6 @@ export default function Applications() {
                       <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-[220px]">
                         Resume Used
                       </TableHead>
-                      <TableHead className="hidden">
-                        JEV Classifier
-                      </TableHead>
                       <TableHead className="text-sm font-semibold text-gray-700 dark:text-gray-300 relative w-[120px]">
                         <div className="flex items-center gap-2">
                           <span>Status</span>
@@ -520,25 +524,26 @@ export default function Applications() {
                           </div>
                         </TableCell>
                         <TableCell className="w-[220px] text-sm text-gray-700 dark:text-gray-300">
-                          <div className="truncate" title={app.jevClassification?.choice || app.resume || 'Not selected'}>
-                            {app.jevClassification?.choice || app.resume || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden">
-                          <div className="space-y-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => runJevClassifier(app)}
-                              disabled={classifying === `${app.applicationTime}:${app.job_link}`}
-                            >
-                              {classifying === `${app.applicationTime}:${app.job_link}` ? 'Classifying...' : 'Run JEV'}
-                            </Button>
-                            {app.jevClassification && (
-                              <p className="truncate text-xs text-gray-600 dark:text-gray-400" title={app.jevClassification.choice}>
-                                Choice: {app.jevClassification.choice}
-                                {typeof app.jevClassification.confidence === 'number' ? ` (${Math.round(app.jevClassification.confidence * 100)}%)` : ''}
-                              </p>
+                          <div
+                            className="group relative truncate"
+                            title={[
+                              app.jevClassification?.choice || app.resume || 'Not selected',
+                              ...Object.entries(app.jevClassification?.probabilities || {}).map(([resume, probability]) => `${resume}: ${Math.round(probability * 100)}%`)
+                            ].join('\n')}
+                          >
+                            <span>{app.jevClassification?.choice || app.resume || '—'}</span>
+                            {app.jevClassification && Object.keys(app.jevClassification.probabilities || {}).length > 0 && (
+                              <div className="pointer-events-none invisible absolute bottom-full left-0 z-50 mb-2 w-72 rounded-md border border-gray-200 bg-white p-3 text-xs opacity-0 shadow-lg transition-opacity group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 dark:border-stone-700 dark:bg-stone-800">
+                                <p className="mb-2 font-semibold text-gray-900 dark:text-gray-100">Resume match probabilities</p>
+                                <div className="space-y-1 text-gray-600 dark:text-gray-300">
+                                  {Object.entries(app.jevClassification.probabilities).map(([resume, probability]) => (
+                                    <div key={resume} className="flex justify-between gap-3">
+                                      <span className="truncate" title={resume}>{resume}</span>
+                                      <span className="shrink-0 font-medium">{Math.round(probability * 100)}%</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -594,38 +599,33 @@ export default function Applications() {
                                     {app.jevClassification?.choice || app.resume || 'Run JEV to get a recommendation'}
                                   </p>
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => runJevClassifier(app)} disabled={classifying === applicationKey(app)}>
-                                  {classifying === applicationKey(app) ? 'Classifying...' : 'Run JEV'}
-                                </Button>
-                                {app.jevClassification && (
-                                  <div className="mt-3 space-y-3">
-                                    <details className="rounded-md border border-gray-200 dark:border-stone-700">
-                                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium">Request payload</summary>
-                                      <pre className="max-h-72 overflow-auto border-t border-gray-200 bg-gray-950 p-3 text-[11px] text-green-200 dark:border-stone-700">{formatPayload(app.jevClassification.requestPayload)}</pre>
-                                    </details>
-                                    <details className="rounded-md border border-gray-200 dark:border-stone-700">
-                                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium">Response payload</summary>
-                                      <pre className="max-h-72 overflow-auto border-t border-gray-200 bg-gray-950 p-3 text-[11px] text-green-200 dark:border-stone-700">{formatPayload(app.jevClassification.responsePayload)}</pre>
-                                    </details>
-                                  </div>
-                                )}
                                 <div className="mt-4">
-                                  <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">Application log</h3>
-                                  <div className="max-h-80 space-y-2 overflow-y-auto">
-                                    {(app.logs || []).length === 0 ? (
-                                      <p className="text-sm text-gray-500 dark:text-gray-400">No log entries.</p>
-                                    ) : [...app.logs].reverse().map((log, index) => (
-                                      <div key={`${log.timestamp}-${index}`} className="rounded-md border border-gray-200 bg-white p-3 text-sm dark:border-stone-700 dark:bg-stone-800">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <span className="font-medium text-gray-900 dark:text-gray-100">{log.action}</span>
-                                          <span className="shrink-0 text-xs uppercase text-gray-500 dark:text-gray-400">{log.type}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleLog(app)}
+                                    className="flex w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50 dark:border-stone-700 dark:bg-stone-800 dark:text-gray-100 dark:hover:bg-stone-700"
+                                    aria-expanded={expandedLogs.has(applicationKey(app))}
+                                  >
+                                    <span>Application log ({(app.logs || []).length})</span>
+                                    {expandedLogs.has(applicationKey(app)) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                  </button>
+                                  {expandedLogs.has(applicationKey(app)) && (
+                                    <div className="mt-2 max-h-80 space-y-2 overflow-y-auto">
+                                      {(app.logs || []).length === 0 ? (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">No log entries.</p>
+                                      ) : [...app.logs].reverse().map((log, index) => (
+                                        <div key={`${log.timestamp}-${index}`} className="rounded-md border border-gray-200 bg-white p-3 text-sm dark:border-stone-700 dark:bg-stone-800">
+                                          <div className="flex items-start justify-between gap-3">
+                                            <span className="font-medium text-gray-900 dark:text-gray-100">{log.action}</span>
+                                            <span className="shrink-0 text-xs uppercase text-gray-500 dark:text-gray-400">{log.type}</span>
+                                          </div>
+                                          <p className="mt-1 text-gray-600 dark:text-gray-300">{log.reason}</p>
+                                          {log.result && <p className="mt-1 text-gray-500 dark:text-gray-400">Result: {log.result}</p>}
+                                          <p className="mt-1 text-xs text-gray-400">{formatDate(log.timestamp)}</p>
                                         </div>
-                                        <p className="mt-1 text-gray-600 dark:text-gray-300">{log.reason}</p>
-                                        {log.result && <p className="mt-1 text-gray-500 dark:text-gray-400">Result: {log.result}</p>}
-                                        <p className="mt-1 text-xs text-gray-400">{formatDate(log.timestamp)}</p>
-                                      </div>
-                                    ))}
-                                  </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </section>
                             </div>

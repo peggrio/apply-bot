@@ -8,7 +8,7 @@ interface KnowledgeEntry {
   question: string
   assumedAnswer?: string
   answer?: string
-  timestamp: string
+  timestamp?: string
   updatedAt?: string
 }
 
@@ -24,6 +24,7 @@ export default function KnowledgeBase() {
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [newKnowledge, setNewKnowledge] = useState<{ question: string; answer: string }>({ question: '', answer: '' })
   const [currentPage, setCurrentPage] = useState(1)
+  const [isBatchSaving, setIsBatchSaving] = useState(false)
   
   const ITEMS_PER_PAGE = 10
 
@@ -45,41 +46,46 @@ export default function KnowledgeBase() {
     }
   }
 
-  const handleSaveAnswer = async (index: number) => {
-    const answer = newAnswer[index]?.trim()
-    if (!answer) {
-      alert('Please enter an answer')
+  const handleBatchSave = async () => {
+    const answersToSave = questions
+      .map((question, index) => ({ index, answer: question.answer ? '' : newAnswer[index]?.trim() || '' }))
+      .filter(({ answer }) => answer)
+
+    if (answersToSave.length === 0) {
+      alert('Please fill in at least one answer before batch saving.')
       return
     }
 
+    if (!confirm(`Save ${answersToSave.length} answered question${answersToSave.length === 1 ? '' : 's'} to Memory? Empty fields will be skipped.`)) return
+
+    setIsBatchSaving(true)
     try {
-      const updatedQuestions = [...questions]
       const now = new Date().toISOString()
-      updatedQuestions[index] = {
-        ...updatedQuestions[index],
-        answer: answer,
-        updatedAt: now,
-        timestamp: updatedQuestions[index].timestamp || now
+      const updatedQuestions = [...questions]
+      for (const { index, answer } of answersToSave) {
+        updatedQuestions[index] = {
+          ...updatedQuestions[index],
+          answer,
+          updatedAt: now,
+          timestamp: updatedQuestions[index].timestamp || now
+        }
       }
 
       const response = await fetch(`${API_BASE_URL}/unknown`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedQuestions),
       })
+      if (!response.ok) throw new Error('Failed to batch save answers')
 
-      if (response.ok) {
-        setQuestions(updatedQuestions)
-        setNewAnswer({ ...newAnswer, [index]: '' })
-        setActiveTab('answered') // Switch to answered tab after saving
-      } else {
-        throw new Error('Failed to save answer')
-      }
+      setQuestions(updatedQuestions)
+      setNewAnswer({})
+      setActiveTab('answered')
     } catch (error) {
-      console.error('Failed to save answer:', error)
-      alert('Failed to save answer. Please try again.')
+      console.error('Failed to batch save answers:', error)
+      alert('Failed to batch save answers. Please try again.')
+    } finally {
+      setIsBatchSaving(false)
     }
   }
 
@@ -237,19 +243,17 @@ export default function KnowledgeBase() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return dateString
-    }
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Not recorded'
+    const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return 'Not recorded'
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   const unansweredQuestions = questions.filter(q => !q.answer)
@@ -335,6 +339,12 @@ export default function KnowledgeBase() {
                 <CardDescription>
                   These are questions that AI encountered but don't have answers yet. Please fill in the answers and save them.
                 </CardDescription>
+                {unansweredQuestions.length > 0 && (
+                  <Button onClick={handleBatchSave} size="sm" disabled={isBatchSaving || !Object.values(newAnswer).some(answer => answer.trim())} className="mt-3 self-start">
+                    <Save className="h-4 w-4 mr-1" />
+                    {isBatchSaving ? 'Saving...' : 'Save Filled Answers'}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="p-6">
                 {unansweredQuestions.length === 0 ? (
@@ -361,18 +371,16 @@ export default function KnowledgeBase() {
                               <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
                                 {formatDate(question.timestamp)}
                               </div>
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {question.question}
+                              <div className="flex flex-wrap items-center gap-2 font-medium text-gray-900 dark:text-white">
+                                <span>{question.question}</span>
+                                {newAnswer[originalIndex]?.trim() && (
+                                  <span className="text-xs font-normal text-amber-700 dark:text-amber-400" role="status">
+                                    Unsaved
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleSaveAnswer(originalIndex)}
-                                size="sm"
-                              >
-                                <Save className="h-4 w-4 mr-1" />
-                                Save
-                              </Button>
                               <Button
                                 onClick={() => handleDelete(originalIndex)}
                                 variant="ghost"
@@ -629,4 +637,3 @@ export default function KnowledgeBase() {
     </div>
   )
 }
-
