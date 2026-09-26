@@ -4,12 +4,14 @@
 
 Open LinkedIn, search for software engineer positions in the San Francisco Bay Area posted within the last 24 hours, and collect the latest 2 job postings for my review.
 
-## Critical Safety Rule: Never Submit Applications
+## Supervised Real Application Mode
 
-- Fully stop automated job submission. Do not click Apply, Easy Apply, Submit, Send, or any equivalent button.
-- Do not fill or advance through application forms.
-- The agent may only inspect job listings, collect job information, and create review records.
-- Every record must use exactly `"status": "needs-review"`. No other status is allowed.
+- Real applications are enabled only in a human-supervised browser session. Keep the browser open and visible for the entire application flow; never run this workflow headlessly or in the background.
+- Present every page, field, question, uploaded document, and proposed answer before proceeding. Do not hide application state, request data, or navigation steps.
+- The agent may inspect listings, select the JEV-recommended resume, open the application, and fill non-sensitive fields using explicitly approved information. Do not invent answers.
+- Stop immediately before the final Apply, Easy Apply, Submit, Send, or equivalent action. Ask the user to review the complete application and explicitly confirm the exact final submission.
+- Never submit an application without that action-time confirmation. If the user does not confirm, leave the form unsubmitted and record `"status": "needs-review"`.
+- If an application asks about company-specific motivation, mission, values, products, or culture fit, stop and present the question for the user to answer or approve; do not draft or infer the answer.
 - **Company-specific motivation/culture rule**: If an application asks questions such as "Why are you interested in [Company]?", "Why do you want to work here?", or anything about a specific company's mission, values, products, or culture fit, immediately classify the job as `needs-review`. Do not draft or infer an answer, do not continue the application flow, and never submit it automatically. This rule remains mandatory even if other automatic form-filling features are enabled in the future.
 
 ## Personal Information Sources
@@ -70,10 +72,13 @@ My personal information is stored in the `data/` folder:
    - **Important**: `status` must always be exactly `"needs-review"`.
    - **Important**: Leave `resume` as `null`. The user selects a dedicated parsed resume for each job from the Applications dashboard.
 
-4. **Review Preparation Only**:
+4. **Supervised Application Flow**:
    - Use `data/job-filters.json` to decide whether a listing is relevant.
    - Reading the job page and its description is allowed.
-   - Opening, filling, or submitting an application form is prohibited.
+   - Keep the browser open and visible and explain each navigation, field, answer, and resume choice.
+   - Before entering sensitive personal information or uploading a resume, present the exact destination and data to the user and obtain confirmation.
+   - Before final submission, present the complete application state and wait for explicit action-time confirmation.
+   - Never bypass CAPTCHAs, security checks, login prompts, or external-site warnings; hand control to the user when required.
 
 5. **Modal Close Optimization**:
    - **Problem**: When using `browser_click` to click close buttons (like "Done", "Dismiss"), although the modal is closed, the tool may still be waiting for the page to fully load or async operations to complete, causing slow response
@@ -92,8 +97,8 @@ My personal information is stored in the `data/` folder:
    - **Note**: If you just need to close the modal and continue to the next operation, you don't need to wait for `browser_click` to complete. You can directly use `browser_evaluate` or `browser_press_key` to close quickly
 
 6. **Other Tips**:
-   - Do not start either Easy Apply or an external portal application.
-   - If job details cannot be collected, skip the listing and record the reason.
+   - Do not submit through Easy Apply or an external portal without the explicit final confirmation described above.
+   - If job details or application fields cannot be collected safely, stop and record the reason.
 
 7. **Application Logging**:
    - Store logs directly in the relevant application's `logs` array. Do not create or update `data/logs.json`.
