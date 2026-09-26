@@ -3,7 +3,7 @@ import { usePlaywrightConnection } from '../hooks/usePlaywrightConnection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { TrendingUp, FileText, CheckCircle2, RefreshCw, Download, ExternalLink, Github, Heart, BookOpen, ArrowUpRight, LockKeyhole } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -252,7 +252,7 @@ export default function Dashboard() {
             <AreaChart
               data={dailyApplicationsData}
               margin={{
-                left: 0,
+                left: 12,
                 right: 12,
                 top: 12,
                 bottom: 0,
@@ -273,13 +273,24 @@ export default function Dashboard() {
                 tickFormatter={(value) => value}
                 className="text-xs text-gray-600 dark:text-gray-400"
               />
+              <YAxis
+                domain={[0, (dataMax: number) => Math.max(1, Math.ceil(dataMax))]}
+                allowDecimals={false}
+                tickCount={5}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={64}
+                label={{ value: 'Jobs', angle: -90, position: 'insideLeft' }}
+                className="text-xs text-gray-600 dark:text-gray-400"
+              />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent indicator="dot" />}
               />
               <Area
                 dataKey="applied"
-                type="natural"
+                type="monotone"
                 fill="url(#fillApplied)"
                 fillOpacity={1}
                 stroke="var(--color-applied)"
