@@ -6,9 +6,9 @@
 
 This fork extends [the original Apply Bot](https://github.com/ZackHu-2001/apply-bot) with isolated local data, a Memory page, JEV resume matching, and a review-first application workflow.
 
-## Privacy and text isolation / 文本隔离
+## Privacy and text isolation
 
-**Memory answers stay local in this app（个人答案文本隔离）.** Answers entered in the Memory page are written to `data/knowledge.json` by the local server. The current JEV classifier does not read that file or include its answers in its API request. The file is ignored by Git, so it is not included in normal commits or pushes. 换言之，当前应用不会把 Memory 中的个人答案上传给 JEV；实际填写职位申请时，输入的内容会发送给相应的招聘网站。
+**Memory answers stay local in this app.** Answers entered in the Memory page are written to `data/knowledge.json` by the local server. The current JEV classifier does not read that file or include its answers in its API request. The file is ignored by Git, so it is not included in normal commits or pushes. In other words, this app does not send Memory answers to JEV. When you fill out a job application, the information you enter is shared with the recruiting site.
 
 **For Memory and filter data, only examples are shared in the repository.** `data/knowledge_example.json` and `data/job-filters_example.json` are templates. When the corresponding local JSON file does not exist, the dashboard displays its example file; saving edits creates the ignored local file. Keep personal answers and preferences in `data/knowledge.json` and `data/job-filters.json`, not in the example files.
 
