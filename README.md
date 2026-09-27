@@ -1,90 +1,76 @@
 # Apply Bot
 
-> AI-powered job application assistant - describe what you want, it handles the rest.
+> A local dashboard for reviewing jobs, matching resumes, and preparing supervised applications.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[Website](https://apply-bot.com) | [Video Demo](#video-demo) | [Setup Guide](https://docs.apply-bot.com) | [Issues](https://github.com/ZackHu-2001/apply-bot/issues)
+This fork extends [the original Apply Bot](https://github.com/ZackHu-2001/apply-bot) with isolated local data, a Memory page, JEV resume matching, and a review-first application workflow.
 
----
+## Privacy and text isolation
 
-## Video Demo
+**Memory answers stay local in this app.** Answers entered in the Memory page are written to `data/knowledge.json` by the local server. The current JEV classifier does not read that file or include its answers in its API request. The file is ignored by Git, so it is not included in normal commits or pushes. In other words, this app does not send Memory answers to JEV. When you fill out a job application, the information you enter is shared with the recruiting site.
 
-[![Apply Bot Demo](public/apply-bot.gif)](http://youtube.com/watch?v=BcPL9qGtJdg&t=15s)
+**For Memory and filter data, only examples are shared in the repository.** `data/knowledge_example.json` and `data/job-filters_example.json` are templates. When the corresponding local JSON file does not exist, the dashboard displays its example file; saving edits creates the ignored local file. Keep personal answers and preferences in `data/knowledge.json` and `data/job-filters.json`, not in the example files.
 
----
+There are important limits to this isolation:
 
-## Features
+| Data | Where it goes |
+| --- | --- |
+| Memory answers | Local `data/knowledge.json`; not sent by the current JEV endpoint |
+| Job filters | Local `data/job-filters.json` |
+| Uploaded PDF resumes and parsed text | Local `data/resumes/` and `data/parsed_resumes/` |
+| JEV classification input | The job title, job description, and **full parsed text of every available parsed PDF resume** are sent to `api.typesafe.ai` when classification runs |
+| JEV result and request/response payloads | Saved locally with the application record under `data/applications/` |
+| Actual job application | Any information entered or submitted in a job portal is shared with that portal; review it in the visible browser before proceeding |
 
-- **Natural Language Control** - Just describe the jobs you want
-- **Real Browser Integration** - Uses your actual browser session
-- **Privacy-First** - All data stored locally
-- **Smart Filtering** - Whitelist/blacklist companies, skip certain jobs
-- **Application Tracking** - Track all submissions in one place
-- **Application Logging** - Detailed action and reasoning logs stored with each application
+The local files above, application records, and `credentials/jev.json` are Git-ignored. Git ignore rules do not prevent manual uploads, screenshots, or another AI/browser tool from sending data elsewhere. Review the tools and destination used for any real application.
 
-## Quick Example
+## What's added in this fork
 
-```
-You: "Apply to Software Engineer positions in Vancouver posted in last 24 hours on LinkedIn"
+- **Job review records:** Keep each scanned job in `needs-review` with its description, link, UTC timestamps, and per-application logs. The Applications page groups and filters records by date, company, position, status, and link. Logs start collapsed.
+- **JEV resume selection:** When Applications loads a record without a JEV classification, the local server compares its job title and description with every parsed PDF resume through the TypeSafe JEV API. The chosen PDF appears in **Resume Used**; hover over it to see each resume's match probability. Classification needs a configured API key and at least one parsed resume. A failed classification leaves the record available for review.
+- **Resume management:** Upload, preview, replace, delete, and parse PDF resumes in the dashboard. Parsed text is kept alongside the local PDF data.
+- **Memory:** Store answers to recurring application questions locally. Fill multiple Pending answers, then use **Save Filled Answers** to save only nonempty fields after one confirmation. Filled drafts show **Unsaved** until saved. Older entries without timestamps display **Not recorded**.
+- **Editable filters and prompts:** Configure job preferences and edit the English or Chinese LinkedIn task prompts in the dashboard.
+- **Supervised application guidance:** The included prompts require a visible browser, presentation of application fields and answers, and explicit confirmation before final submission. The dashboard itself does not submit job applications.
 
-Bot: Searches, filters, and applies automatically based on your resume and preferences.
-```
+## Quick start
 
-## Requirements
-
-- Node.js 21+
-- Chrome/Edge browser
-- MCP-compatible AI tool (Claude Desktop, Cursor, VSCode, Windsurf, etc.)
-
-## Quick Start
+Requirements: Node.js 21+, a browser, and an MCP-compatible assistant for browser-based job scanning.
 
 ```bash
-# Clone the repo
-git clone https://github.com/ZackHu-2001/apply-bot.git
+git clone https://github.com/peggrio/apply-bot.git
 cd apply-bot
-
-# Install dependencies
 npm install
-
-# Start the dashboard & backend service
 npm run start
 ```
 
-See the full [Setup Guide](https://docs.apply-bot.com) for detailed instructions.
+Open the local dashboard URL printed by Vite. To use resume matching, upload and parse one or more PDFs in **Resume**, then create `credentials/jev.json` with an `apiKey` for TypeSafe JEV. The local server reads this file; it is excluded from Git.
 
-## Tech Stack
+The included LinkedIn prompts are in `data/prompts/`. They guide an MCP-capable assistant through scanning and supervised application steps; starting the dashboard alone does not scan LinkedIn or open application forms.
 
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **Backend**: Express.js
-- **Browser Automation**: Playwright MCP Server
-- **AI**: Any MCP-compatible LLM
+## Project structure
 
-## Project Structure
-
-```
+```text
 apply-bot/
-├── src/           # React frontend
-├── data/          # Local data storage
-│   ├── applications/     # Application records grouped by UTC date (local only)
-│   ├── resumes/          # Uploaded PDF resumes (local only)
-│   ├── parsed_resumes/   # One parsed text file per resume (local only)
-│   ├── knowledge.json    # Local user answers (gitignored)
-│   ├── knowledge_example.json # Shareable memory template
-│   ├── prompts.json      # Prompt templates
-│   ├── job-filters.json  # Local filter preferences (gitignored)
-│   └── job-filters_example.json # Shareable filter template
-└── server.js      # Express backend
+├── src/                         # React dashboard
+├── data/
+│   ├── applications/YYYY-MM-DD/ # Local UTC-dated job review records
+│   ├── resumes/                 # Local PDF resumes
+│   ├── parsed_resumes/          # Local parsed resume text
+│   ├── knowledge.json           # Local personal answers (Git-ignored)
+│   ├── knowledge_example.json   # Committed Memory template
+│   ├── job-filters.json         # Local preferences (Git-ignored)
+│   ├── job-filters_example.json # Committed filter template
+│   └── prompts/                 # Editable LinkedIn task prompts
+├── credentials/jev.json         # Local JEV API key (Git-ignored)
+└── server.js                    # Local Express API
 ```
 
 ## Contributing
 
-PRs welcome! See [Contributing Guide](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Do not add real Memory answers, resumes, API keys, or application records to pull requests.
 
 ## License
 
-MIT - see [LICENSE](LICENSE)
-
----
-
-**Disclaimer**: Use responsibly and comply with platform terms of service.
+MIT — see [LICENSE](LICENSE).
